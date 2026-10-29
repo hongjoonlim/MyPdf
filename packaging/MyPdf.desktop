@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=MyPdf
+Comment=Read, organize, and sign PDF documents
+Exec=MyPdf %f
+Icon=MyPdf
+Terminal=false
+Categories=Office;Viewer;
+MimeType=application/pdf;application/vnd.openxmlformats-officedocument.wordprocessingml.document;
+StartupNotify=true
+StartupWMClass=MyPdf

@@ -1,0 +1,56 @@
+name: Native builds
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  ubuntu:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential cmake ninja-build pkg-config qt6-base-dev libpoppler-qt6-dev qpdf qt6-translations-l10n zlib1g-dev
+      - name: Build and test
+        run: ./scripts/build.sh
+
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: msys2/setup-msys2@v2
+        with:
+          msystem: UCRT64
+          update: true
+          install: >-
+            mingw-w64-ucrt-x86_64-gcc
+            mingw-w64-ucrt-x86_64-cmake
+            mingw-w64-ucrt-x86_64-ninja
+            mingw-w64-ucrt-x86_64-pkgconf
+            mingw-w64-ucrt-x86_64-qt6-base
+            mingw-w64-ucrt-x86_64-qt6-translations
+            mingw-w64-ucrt-x86_64-poppler-qt6
+            mingw-w64-ucrt-x86_64-qpdf
+            mingw-w64-ucrt-x86_64-zlib
+      - name: Build and test
+        shell: msys2 {0}
+        run: ./scripts/build.sh
+
+  macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install dependencies
+        run: brew install cmake ninja pkgconf qtbase qttranslations poppler-qt6 qpdf zlib
+      - name: Build and test
+        run: ./scripts/build.sh
+      - name: Check app bundle installation
+        run: |
+          cmake --install build --prefix "$RUNNER_TEMP/MyPdf-install"
+          test -f "$RUNNER_TEMP/MyPdf-install/MyPdf.app/Contents/MacOS/MyPdf"
+          test -f "$RUNNER_TEMP/MyPdf-install/MyPdf.app/Contents/Resources/MyPdf.icns"

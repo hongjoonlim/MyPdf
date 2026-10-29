@@ -1,0 +1,6 @@
+<RCC>
+  <qresource prefix="/translations">
+    <file>de.json</file>
+    <file>ko.json</file>
+  </qresource>
+</RCC>

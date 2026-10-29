@@ -1,0 +1,2 @@
+#pragma once
+#define MYPDF_CONFIGURED_QPDF R"MyPdf(@MYPDF_CONFIGURED_QPDF@)MyPdf"
