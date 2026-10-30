@@ -18,7 +18,7 @@ Ubuntu·Windows·macOS를 대상으로 하는 C++17 / Qt 6 PDF 편집기입니�
 
 서명은 **시각적 서명**이며, 인증서 기반 디지털 서명은 아닙니다.
 
-앱 아이콘은 선택한 08번 포메라니안이며 `assets/icons/MyPdf.png`에 저장하고 실행 파일에 포함합니다. Linux 설치 시 `packaging/MyPdf.desktop`과 아이콘도 설치합니다. 프로젝트 폴더에서 `cmake --install build --prefix "$HOME/.local"`을 실행하면 현재 사용자용으로 설치됩니다. `$HOME/.local/bin`이 `PATH`에 포함되어 있어야 합니다.
+앱 아이콘은 선택한 08번 포메라니안이며 `assets/icons/MyPdf.png`에 저장하고 실행 파일에 포함합니다. Linux 설치 시 `packaging/MyPdf.desktop`과 아이콘도 설치합니다. 프로젝트 폴더에서 `cmake --install build --prefix "$HOME/.local"`을 실행하면 현재 사용자용으로 설치됩니다. 설치된 데스크톱 항목은 실행 파일과 아이콘의 절대 경로를 사용하므로 앱 메뉴 실행은 `PATH`에 의존하지 않습니다. hicolor 아이콘도 설치하고 사용 가능한 데스크톱·아이콘 캐시를 갱신합니다.
 
 Linux 개발 중에는 빌드 후 `./scripts/install-launcher.sh`를 실행하면 실행 파일을 복사하지 않고 현재 빌드와 아이콘을 사용자 앱 메뉴에 등록합니다. MyPdf를 종료한 뒤 앱 메뉴에서 다시 실행하세요. 독에 이전 즐겨찾기가 남아 있으면 제거 후 다시 고정하세요. 프로젝트 위치를 옮겼다면 스크립트를 다시 실행합니다. 등록 위치는 `${XDG_DATA_HOME:-$HOME/.local/share}`입니다.
 

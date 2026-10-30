@@ -18,7 +18,7 @@ A C++17 / Qt 6 PDF editor targeting Ubuntu, Windows, and macOS. Read documents, 
 
 Signatures are **visual signatures**, not certificate-based digital signatures.
 
-The application icon is the selected Pomeranian concept (08), stored in `assets/icons/MyPdf.png` and embedded in the executable. Linux desktop installation also installs `packaging/MyPdf.desktop` and the icon. From the project directory, `cmake --install build --prefix "$HOME/.local"` installs the application for the current user; ensure `$HOME/.local/bin` is in `PATH`.
+The application icon is the selected Pomeranian concept (08), stored in `assets/icons/MyPdf.png` and embedded in the executable. Linux desktop installation also installs `packaging/MyPdf.desktop` and the icon. From the project directory, `cmake --install build --prefix "$HOME/.local"` installs the application for the current user; the installed desktop entry uses absolute executable and icon paths, so launching from the application menu does not depend on `PATH`. The icon is also installed in the hicolor theme and available desktop/icon caches are refreshed.
 
 For Linux development, run `./scripts/install-launcher.sh` after building to register the current build and icon in your user application menu without copying the executable. Restart MyPdf and launch it from the application menu. If an old dock favorite remains, remove and pin it again. Run the script again after moving the project. This registers the launcher under `${XDG_DATA_HOME:-$HOME/.local/share}`.
 

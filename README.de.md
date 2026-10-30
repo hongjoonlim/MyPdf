@@ -18,7 +18,7 @@ Ein PDF-Editor mit C++17 und Qt 6 für Ubuntu, Windows und macOS. Lesen Sie Doku
 
 Unterschriften sind **visuelle Unterschriften**, keine zertifikatsbasierten digitalen Signaturen.
 
-Als Anwendungssymbol dient der ausgewählte Pomeranian-Entwurf (08), gespeichert unter `assets/icons/MyPdf.png` und in die Programmdatei eingebettet. Bei der Linux-Installation werden auch `packaging/MyPdf.desktop` und das Symbol installiert. Mit `cmake --install build --prefix "$HOME/.local"` im Projektverzeichnis installieren Sie die Anwendung für den aktuellen Benutzer; `$HOME/.local/bin` muss in `PATH` enthalten sein.
+Als Anwendungssymbol dient der ausgewählte Pomeranian-Entwurf (08), gespeichert unter `assets/icons/MyPdf.png` und in die Programmdatei eingebettet. Bei der Linux-Installation werden auch `packaging/MyPdf.desktop` und das Symbol installiert. Mit `cmake --install build --prefix "$HOME/.local"` im Projektverzeichnis installieren Sie die Anwendung für den aktuellen Benutzer; Der installierte Desktop-Eintrag verwendet absolute Programm- und Symbolpfade; der Start aus dem Anwendungsmenü benötigt keinen zusätzlichen PATH-Eintrag. Das Symbol wird auch im hicolor-Thema installiert; verfügbare Desktop- und Symbol-Caches werden aktualisiert.
 
 Für die Linux-Entwicklung registriert `./scripts/install-launcher.sh` nach dem Kompilieren den aktuellen Build und das Symbol im persönlichen Anwendungsmenü, ohne die Programmdatei zu kopieren. Beenden Sie MyPdf und starten Sie es über das Anwendungsmenü neu. Entfernen Sie gegebenenfalls einen alten Dock-Favoriten und heften Sie die Anwendung erneut an. Führen Sie das Skript nach einem Umzug des Projekts erneut aus. Der Eintrag wird unter `${XDG_DATA_HOME:-$HOME/.local/share}` angelegt.
 
