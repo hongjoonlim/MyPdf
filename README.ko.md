@@ -92,6 +92,40 @@ cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug \
 cmake --build build --parallel
 ```
 
+#### macOS: `Tests require qpdf on PATH or -DQPDF_EXECUTABLE=...`
+
+CMake가 **qpdf 실행 파일**을 찾지 못한 경우입니다. qpdf는 테스트뿐 아니라 페이지 편집·서명·텍스트 합성에도 필요하므로 테스트를 끄는 것만으로 해결되지 않습니다. [Homebrew의 qpdf 패키지](https://formulae.brew.sh/formula/qpdf)를 설치하고 실행 파일을 확인하세요.
+
+```bash
+brew install qpdf
+"$(brew --prefix qpdf)/bin/qpdf" --version
+./scripts/build.sh
+```
+
+수정된 `build.sh`는 `MYPDF_QPDF`로 지정한 실행 파일, Homebrew의 `qpdf/bin/qpdf`, `PATH` 순서로 탐색하고 `-DQPDF_EXECUTABLE`을 CMake에 전달합니다. Mac 체크아웃에도 최신 스크립트를 반영하세요. 설치했는데 위 명령으로 실행되지 않으면 `brew reinstall qpdf`로 재설치합니다. `MYPDF_QPDF`가 설정되어 있으면 유효한 실행 파일 경로인지 확인하거나 해당 설정을 해제하세요. CMake 직접 실행 시에는 기존 configure 명령에 `-DQPDF_EXECUTABLE="$(brew --prefix qpdf)/bin/qpdf"`를 추가합니다.
+
+#### macOS: GUI 테스트 여러 개가 `Subprocess aborted`로 종료되는 경우
+
+`native_docx`, `pdf_operations`, `localization`, `signature_cancellation`, `editable_objects`, `object_editing`은 모두 `QApplication`을 생성합니다. `tool_discovery`만 통과하고 이 테스트들이 전부 중단되면 Qt 플랫폼 플러그인 등 공통 GUI 초기화 실패가 의심되지만, 실패 목록만으로 확정할 수는 없습니다. 빌드 성공과 테스트 통과는 별개입니다.
+
+기존 설정은 모든 GUI 테스트에 `offscreen`을 강제해 macOS에서 `Could not find the Qt platform plugin "offscreen"`으로 중단될 수 있었습니다. 수정된 설정은 macOS에서 기본 `cocoa`, 그 외 운영체제에서 `offscreen`을 사용합니다. 연결한 Qt의 플러그인 CMake 타깃에서 실제 경로를 찾으면 테스트에만 `QT_QPA_PLATFORM_PLUGIN_PATH`와 `QT_PLUGIN_PATH`를 전달합니다. 전역 셸 설정은 변경하지 않습니다.
+
+Mac 체크아웃에 수정된 `CMakeLists.txt`, `cmake/test_environment.cmake`, `scripts/build.sh`를 반영한 뒤 다음을 실행하세요. `cocoa` 테스트는 로그인된 macOS 데스크톱 세션에서 실행하며 창이나 대화상자가 잠깐 표시될 수 있습니다.
+
+```bash
+MYPDF_TEST_QPA_PLATFORM=cocoa ./scripts/build.sh
+```
+
+`offscreen` 플러그인을 포함한 Qt로 화면 없이 테스트하려면 `MYPDF_TEST_QPA_PLATFORM=offscreen`을 대신 지정할 수 있습니다. 플러그인 경로를 직접 지정해야 할 때는 `MYPDF_TEST_QT_PLUGIN_DIR`에 같은 Qt 버전·아키텍처의 `platforms` 디렉터리를 설정합니다. 두 변수는 빌드 스크립트가 CMake 옵션으로 전달하므로 선택값이 빌드 캐시에 남습니다.
+
+그래도 중단되면 다음으로 실제 플러그인 탐색 로그를 확인하세요.
+
+```bash
+QT_DEBUG_PLUGINS=1 ctest --test-dir build -R '^pdf_operations$' -V
+```
+
+전체 테스트 로그는 `build/Testing/Temporary/LastTest.log`에 있습니다. `Could not find/load the Qt platform plugin`, `Library not loaded`, `incompatible architecture` 등의 **실제 출력**을 기준으로 원인을 진단해야 합니다. 플러그인 경로가 다른 Qt/Python 환경을 가리키거나 Qt와 플러그인의 버전·아키텍처가 맞지 않는지도 확인합니다. `QT_DEBUG_PLUGINS`는 [Qt의 공식 플러그인 진단 옵션](https://doc.qt.io/qt-6/deployment-plugins.html)입니다. CTest의 테스트별 환경 설정이 우선하므로, 부모 셸에서 `QT_QPA_PLATFORM=cocoa`만 지정해도 해당 테스트 설정은 바뀌지 않습니다. 로그 확인 없이 테스트를 끄거나 패키지를 추가 설치하는 것으로 해결되었다고 판단하지 마세요.
+
 #### macOS: `Could NOT find WrapVulkanHeaders (missing Vulkan_INCLUDE_DIR)`
 
 Qt가 **선택적인 Vulkan 헤더**를 찾지 못했다는 메시지이며, 이 한 줄이 반드시 빌드 실패를 뜻하지는 않습니다. MyPdf는 Qt Widgets·QPainter·Poppler를 사용하고 Vulkan API를 직접 호출하지 않습니다. 이후 `Configuring done`, `Generating done`이 나오면 구성은 성공한 것입니다. 구성이 중단된다면 뒤이어 나오는 `CMake Error`와 다른 의존성 오류도 확인하세요. Qt도 이 의존성을 [구성 소스에서 선택 항목으로 표시](https://github.com/qt/qtbase/blob/6.10/src/gui/configure.cmake#L74-L75)합니다.

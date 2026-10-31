@@ -92,6 +92,40 @@ cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug \
 cmake --build build --parallel
 ```
 
+#### macOS: `Tests require qpdf on PATH or -DQPDF_EXECUTABLE=...`
+
+CMake could not locate the **qpdf executable**. It is used by tests and by page editing, signatures and text composition at runtime; disabling tests does not solve the runtime dependency. Install [Homebrew's qpdf package](https://formulae.brew.sh/formula/qpdf) and check the executable:
+
+```bash
+brew install qpdf
+"$(brew --prefix qpdf)/bin/qpdf" --version
+./scripts/build.sh
+```
+
+The updated `build.sh` checks `MYPDF_QPDF`, Homebrew's `qpdf/bin/qpdf`, then `PATH`, and passes `-DQPDF_EXECUTABLE` to CMake. Update the script in your Mac checkout as well. If installed but the version command fails, use `brew reinstall qpdf`. If `MYPDF_QPDF` is set, ensure it names a valid executable or unset it. For manual CMake configuration, add `-DQPDF_EXECUTABLE="$(brew --prefix qpdf)/bin/qpdf"` to the existing configure command.
+
+#### macOS: several GUI tests exit with `Subprocess aborted`
+
+`native_docx`, `pdf_operations`, `localization`, `signature_cancellation`, `editable_objects` and `object_editing` create a `QApplication`. If only `tool_discovery` passes, a shared GUI initialization failure such as Qt platform-plugin loading is plausible, but the failure list alone does not establish the cause. A successful build is separate from passing tests.
+
+The old configuration forced `offscreen` for all GUI tests, which could abort on macOS with `Could not find the Qt platform plugin "offscreen"`. The updated defaults are `cocoa` on macOS and `offscreen` elsewhere. When a matching Qt plugin CMake target is available, its actual directory is supplied as `QT_QPA_PLATFORM_PLUGIN_PATH` and `QT_PLUGIN_PATH` for tests only; global shell settings remain unchanged.
+
+Update `CMakeLists.txt`, `cmake/test_environment.cmake` and `scripts/build.sh` in the Mac checkout, then run the following. Cocoa tests need a logged-in macOS desktop session and may briefly show windows or dialogs.
+
+```bash
+MYPDF_TEST_QPA_PLATFORM=cocoa ./scripts/build.sh
+```
+
+For headless tests with a Qt installation that includes the offscreen plugin, use `MYPDF_TEST_QPA_PLATFORM=offscreen` instead. To supply a plugin directory manually, set `MYPDF_TEST_QT_PLUGIN_DIR` to the matching Qt version/architecture's `platforms` directory. The script forwards these as CMake options, so selections persist in the build cache.
+
+If startup still aborts, obtain plugin diagnostics:
+
+```bash
+QT_DEBUG_PLUGINS=1 ctest --test-dir build -R '^pdf_operations$' -V
+```
+
+The full test log is `build/Testing/Temporary/LastTest.log`. Diagnose from the actual output, such as `Could not find/load the Qt platform plugin`, `Library not loaded` or `incompatible architecture`. Check whether plugin paths point to another Qt/Python installation and whether Qt and its plugins have matching versions and architectures. `QT_DEBUG_PLUGINS` is an [official Qt plugin diagnostic option](https://doc.qt.io/qt-6/deployment-plugins.html). Test-specific CTest environment settings override the parent environment: setting only `QT_QPA_PLATFORM=cocoa` in the shell does not override this configuration. Disabling tests or installing more packages without checking the log does not establish a fix.
+
 #### macOS: `Could NOT find WrapVulkanHeaders (missing Vulkan_INCLUDE_DIR)`
 
 This is Qt's probe for optional Vulkan headers, not necessarily a fatal build error. MyPdf uses Qt Widgets, QPainter and Poppler, and does not call Vulkan. If CMake reaches `Configuring done` and `Generating done`, this message did not stop configuration. If configuration fails, inspect the following `CMake Error` and dependency messages as well. Qt marks this dependency optional in its [configuration source](https://github.com/qt/qtbase/blob/6.10/src/gui/configure.cmake#L74-L75).

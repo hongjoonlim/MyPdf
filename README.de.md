@@ -92,6 +92,40 @@ cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug \
 cmake --build build --parallel
 ```
 
+#### macOS: `Tests require qpdf on PATH or -DQPDF_EXECUTABLE=...`
+
+CMake findet die **qpdf-Programmdatei** nicht. qpdf wird sowohl für Tests als auch zur Laufzeit für Seitenbearbeitung, Unterschriften und Textkomposition benötigt; Tests abzuschalten genügt nicht. [Homebrews qpdf-Paket](https://formulae.brew.sh/formula/qpdf) installieren und prüfen:
+
+```bash
+brew install qpdf
+"$(brew --prefix qpdf)/bin/qpdf" --version
+./scripts/build.sh
+```
+
+Das aktualisierte `build.sh` prüft `MYPDF_QPDF`, Homebrews `qpdf/bin/qpdf` und danach `PATH` und übergibt `-DQPDF_EXECUTABLE` an CMake. Auch das Skript im Mac-Checkout aktualisieren. Schlägt der Versionsaufruf trotz Installation fehl, `brew reinstall qpdf` verwenden. Eine gesetzte Variable `MYPDF_QPDF` muss eine gültige Programmdatei bezeichnen oder entfernt werden. Bei manueller Konfiguration `-DQPDF_EXECUTABLE="$(brew --prefix qpdf)/bin/qpdf"` zum bestehenden CMake-Befehl hinzufügen.
+
+#### macOS: mehrere GUI-Tests enden mit `Subprocess aborted`
+
+`native_docx`, `pdf_operations`, `localization`, `signature_cancellation`, `editable_objects` und `object_editing` erzeugen eine `QApplication`. Besteht nur `tool_discovery`, ist eine gemeinsame GUI-Initialisierungsstörung, etwa beim Laden des Qt-Plattform-Plugins, plausibel. Die Fehlerliste allein belegt die Ursache nicht. Erfolgreiches Kompilieren und bestandene Tests sind getrennt zu betrachten.
+
+Die bisherige Konfiguration erzwang `offscreen` für alle GUI-Tests und konnte unter macOS mit `Could not find the Qt platform plugin "offscreen"` abbrechen. Jetzt gilt standardmäßig `cocoa` unter macOS und `offscreen` auf anderen Systemen. Ist das passende Qt-Plugin-CMake-Target vorhanden, wird dessen tatsächlicher Pfad über `QT_QPA_PLATFORM_PLUGIN_PATH` und `QT_PLUGIN_PATH` nur an Tests übergeben. Globale Shell-Einstellungen bleiben unverändert.
+
+`CMakeLists.txt`, `cmake/test_environment.cmake` und `scripts/build.sh` im Mac-Checkout aktualisieren und Folgendes ausführen. Cocoa-Tests benötigen eine angemeldete macOS-Desktopsitzung und können kurz Fenster oder Dialoge anzeigen.
+
+```bash
+MYPDF_TEST_QPA_PLATFORM=cocoa ./scripts/build.sh
+```
+
+Für Tests ohne Bildschirm mit installiertem Offscreen-Plugin stattdessen `MYPDF_TEST_QPA_PLATFORM=offscreen` verwenden. Ein manuell gesetztes `MYPDF_TEST_QT_PLUGIN_DIR` muss auf das `platforms`-Verzeichnis derselben Qt-Version und Architektur zeigen. Das Skript übergibt beide Variablen als CMake-Optionen; die Auswahl bleibt im Build-Cache erhalten.
+
+Bei weiterem Abbruch die Plugin-Diagnose abrufen:
+
+```bash
+QT_DEBUG_PLUGINS=1 ctest --test-dir build -R '^pdf_operations$' -V
+```
+
+Das vollständige Protokoll steht unter `build/Testing/Temporary/LastTest.log`. Anhand tatsächlicher Meldungen wie `Could not find/load the Qt platform plugin`, `Library not loaded` oder `incompatible architecture` diagnostizieren. Prüfen, ob Plugin-Pfade auf eine andere Qt-/Python-Installation zeigen und ob Qt und Plugins dieselbe Version und Architektur verwenden. `QT_DEBUG_PLUGINS` ist eine [offizielle Qt-Diagnoseoption](https://doc.qt.io/qt-6/deployment-plugins.html). Testspezifische CTest-Umgebungswerte überschreiben die Elternumgebung: Nur `QT_QPA_PLATFORM=cocoa` in der Shell zu setzen ändert diese Konfiguration nicht. Tests abzuschalten oder ohne Protokoll weitere Pakete zu installieren belegt keine Behebung.
+
 #### macOS: `Could NOT find WrapVulkanHeaders (missing Vulkan_INCLUDE_DIR)`
 
 Qt findet optionale Vulkan-Header nicht; diese einzelne Meldung bedeutet nicht zwingend einen Build-Abbruch. MyPdf verwendet Qt Widgets, QPainter und Poppler und ruft Vulkan nicht direkt auf. Erscheinen danach `Configuring done` und `Generating done`, war die Konfiguration erfolgreich. Bei einem Abbruch auch die folgenden `CMake Error`- und Abhängigkeitsmeldungen prüfen. Qt kennzeichnet diese Abhängigkeit im [Konfigurationsquelltext als optional](https://github.com/qt/qtbase/blob/6.10/src/gui/configure.cmake#L74-L75).

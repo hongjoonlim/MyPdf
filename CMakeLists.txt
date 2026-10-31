@@ -68,7 +68,9 @@ endif()
 include(CTest)
 if(BUILD_TESTING)
   if(NOT QPDF_EXECUTABLE)
-    message(FATAL_ERROR "Tests require qpdf on PATH or -DQPDF_EXECUTABLE=/path/to/qpdf")
+    message(FATAL_ERROR
+      "qpdf is required for tests and PDF editing. macOS: brew install qpdf, then use ./scripts/build.sh. "
+      "Ubuntu: install qpdf. Alternatively configure with -DQPDF_EXECUTABLE=/path/to/qpdf.")
   endif()
   add_executable(docx_test tests/docx_test.cpp src/icons.cpp)
   target_link_libraries(docx_test PRIVATE pdfcore)
@@ -91,8 +93,9 @@ if(BUILD_TESTING)
   add_executable(object_edit_test tests/object_edit_test.cpp src/icons.cpp)
   target_link_libraries(object_edit_test PRIVATE pdfcore)
   add_test(NAME object_editing COMMAND object_edit_test)
+  include(cmake/test_environment.cmake)
   set_tests_properties(object_editing editable_objects native_docx pdf_operations localization signature_cancellation PROPERTIES
-    ENVIRONMENT "QT_QPA_PLATFORM=offscreen;MYPDF_QPDF=${QPDF_EXECUTABLE}")
+    ENVIRONMENT "${MYPDF_GUI_TEST_ENVIRONMENT}")
 endif()
 
 include(GNUInstallDirs)
