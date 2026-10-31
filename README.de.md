@@ -80,6 +80,8 @@ ctest --test-dir build --output-on-failure
 ./scripts/run.sh '/path/to/document.pdf'
 ```
 
+`run.sh` sucht relativ zum Skript und ändert das Arbeitsverzeichnis nicht. Relative Dokumentpfade beziehen sich damit auf das Verzeichnis des Aufrufs. Unter macOS und Windows werden auch Konfigurationsordner wie `build/Debug` und `build/Release` unterstützt. Andere Build-Ordner lassen sich mit `MYPDF_BUILD_DIR` angeben (relativ zum aktuellen Verzeichnis oder absolut). Build-Verzeichnisse und CMake-Caches müssen auf jedem Rechner und Betriebssystem neu erzeugt werden.
+
 Eine Entwicklungsinstallation erfolgt mit `cmake --install build --prefix /path/to/install`. macOS installiert `MyPdf.app`, Windows `bin/MyPdf.exe`; Linux installiert zusätzlich Desktop-Eintrag und Symbol. Dies sind **keine eigenständig verteilbaren Pakete**: Qt-Plugins und Bibliotheken, Poppler-Abhängigkeiten sowie qpdf mit seinen Abhängigkeiten müssen verfügbar bleiben. Automatische DLL-/dylib-Bereitstellung, Installationsprogramme sowie macOS-Signierung und Notarisierung sind nicht implementiert.
 
 Die qpdf-Suche erfolgt in dieser Reihenfolge: `MYPDF_QPDF`, neben der Anwendung, `../Helpers/qpdf` bzw. `qpdf.exe`, `PATH` und zuletzt der beim Konfigurieren gefundene Pfad. Der letzte Pfad ist eine an den Build-Rechner gebundene Entwicklungshilfe. Für einen Finder-Start muss qpdf an einem unterstützten Ort liegen; alternativ starten Sie mit `run.sh` aus einer eingerichteten Shell. Mit `MYPDF_QPDF` können Sie den Programmpfad ohne zusätzliche Argumente ausdrücklich festlegen.

@@ -80,6 +80,8 @@ ctest --test-dir build --output-on-failure
 ./scripts/run.sh '/path/to/document.pdf'
 ```
 
+`run.sh` locates the build relative to the script, without changing the working directory: relative document paths are resolved from the directory where you launch it. macOS and Windows also support configuration subdirectories such as `build/Debug` and `build/Release`. For a custom build directory, set `MYPDF_BUILD_DIR` (relative to your current directory, or absolute). Build directories and CMake caches are machine-specific; configure a fresh build on each operating system.
+
 For a development installation, use `cmake --install build --prefix /path/to/install`. macOS installs `MyPdf.app`; Windows installs `bin/MyPdf.exe`; Linux also installs the desktop entry and icon. These installs are **not self-contained distribution packages**: Qt plugins/libraries, Poppler dependencies, qpdf and its dependencies must still be available. Automatic DLL/dylib deployment, installers, macOS signing and notarization are not implemented.
 
 qpdf lookup order: `MYPDF_QPDF`, an executable beside the application, `../Helpers/qpdf` (or `qpdf.exe`), `PATH`, then the executable found at configure time. A configure-time path is a development fallback tied to the build machine. For Finder launches, ensure qpdf is available at a supported location or use `run.sh` from a configured shell. Set `MYPDF_QPDF` to an executable path, without extra command arguments, to override discovery.

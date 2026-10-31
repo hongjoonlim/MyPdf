@@ -80,6 +80,8 @@ ctest --test-dir build --output-on-failure
 ./scripts/run.sh '/path/to/document.pdf'
 ```
 
+`run.sh`는 스크립트 위치를 기준으로 상대 경로로 실행 파일을 찾고 현재 작업 폴더는 변경하지 않습니다. 따라서 문서의 상대 경로는 스크립트를 실행한 폴더 기준으로 처리합니다. macOS·Windows의 `build/Debug`, `build/Release` 같은 구성별 출력 폴더도 지원합니다. 다른 빌드 폴더는 `MYPDF_BUILD_DIR`로 지정할 수 있습니다(현재 폴더 기준 상대 경로 또는 절대 경로). 빌드 폴더와 CMake 캐시는 운영체제·컴퓨터별로 새로 생성해야 합니다.
+
 개발용 설치는 `cmake --install build --prefix /path/to/install`로 수행합니다. macOS는 `MyPdf.app`, Windows는 `bin/MyPdf.exe`, Linux는 실행 파일과 데스크톱 런처·아이콘을 설치합니다. **의존성을 모두 포함한 독립 배포 패키지는 아닙니다.** Qt 플러그인·라이브러리, Poppler 의존성, qpdf와 그 의존성이 실행 환경에 있어야 합니다. 자동 DLL·dylib 배포, 설치 프로그램, macOS 서명·공증은 구현하지 않았습니다.
 
 qpdf 탐색 순서는 `MYPDF_QPDF`, 앱 실행 파일 옆, `../Helpers/qpdf` 또는 `qpdf.exe`, `PATH`, CMake 구성 시 발견한 경로입니다. 마지막 경로는 빌드한 컴퓨터에 종속된 개발용 대체 경로입니다. Finder에서 실행하려면 지원 경로에 qpdf를 두거나 설정된 터미널에서 `run.sh`를 사용하세요. 탐색을 직접 지정하려면 `MYPDF_QPDF`에 추가 인자 없이 실행 파일 경로만 넣습니다.
