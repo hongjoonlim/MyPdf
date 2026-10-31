@@ -43,10 +43,21 @@ def rpaths(path):
 def qt_paths(deploy):
     # Query the same Qt installation as macdeployqt, never a qmake on PATH.
     for name in ('qmake', 'qmake6'):
-        qmake = Path(deploy).parent / name
+        qmake = Path(deploy).resolve().parent / name
         if qmake.is_file() and os.access(qmake, os.X_OK):
             plugins = Path(run(qmake, '-query', 'QT_INSTALL_PLUGINS'))
             libraries = Path(run(qmake, '-query', 'QT_INSTALL_LIBS'))
+            # Homebrew's queried prefix can point at shared links from another Qt.
+            prefix = Path(run(qmake, '-query', 'QT_INSTALL_PREFIX'))
+            installation = qmake.parent.parent
+            if plugins.is_relative_to(prefix):
+                local_plugins = installation / plugins.relative_to(prefix)
+                if local_plugins.is_dir():
+                    plugins = local_plugins
+            if libraries.is_relative_to(prefix):
+                local_libraries = installation / libraries.relative_to(prefix)
+                if local_libraries.is_dir():
+                    libraries = local_libraries
             if plugins.is_dir() and libraries.is_dir():
                 return plugins, libraries
     raise RuntimeError('Cannot query the matching Qt plugin/library paths beside {}'.format(deploy))
@@ -242,6 +253,10 @@ def main():
                 bundler.visit(binary, original=plugin_origins.get(binary.resolve()))
         bundler.verify()
         for binary in sorted(bundler.done, key=lambda p: len(p.parts), reverse=True):
+            # Signing the main executable also validates its enclosing bundle.
+            # Let the final app signature handle it after all nested code is signed.
+            if binary == bundler.main.resolve():
+                continue
             run('codesign', '--force', '--sign', '-', binary)
         for framework in sorted((app / 'Contents/Frameworks').rglob('*.framework'),
                                 key=lambda p: len(p.parts), reverse=True):

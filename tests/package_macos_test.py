@@ -12,9 +12,29 @@ spec.loader.exec_module(package)
 
 
 class PackagingTest(unittest.TestCase):
+    def test_qt_paths_prefer_tool_installation_over_shared_prefix(self):
+        with tempfile.TemporaryDirectory() as temp:
+            base = Path(temp).resolve()
+            installation = base / 'Cellar/qtbase/6.12'
+            shared = base / 'shared'
+            for root in (installation, shared):
+                (root / 'share/qt/plugins').mkdir(parents=True)
+                (root / 'lib').mkdir()
+            (installation / 'bin').mkdir()
+            qmake = installation / 'bin/qmake'
+            qmake.touch(mode=0o755)
+            deploy = installation / 'bin/macdeployqt'
+            deploy.touch()
+            queries = {'QT_INSTALL_PLUGINS': str(shared / 'share/qt/plugins'),
+                       'QT_INSTALL_LIBS': str(shared / 'lib'),
+                       'QT_INSTALL_PREFIX': str(shared)}
+            with patch.object(package, 'run', side_effect=lambda *args: queries[args[-1]]):
+                paths = package.qt_paths(deploy)
+            self.assertEqual(paths, (installation / 'share/qt/plugins', installation / 'lib'))
+
     def test_recursive_rpath_and_helper_relocation(self):
         with tempfile.TemporaryDirectory(prefix='MyPdf packaging ') as temp:
-            base = Path(temp)
+            base = Path(temp).resolve()
             app = base / 'MyPdf.app'
             main = app / 'Contents/MacOS/MyPdf'
             helper = app / 'Contents/Helpers/qpdf'
@@ -89,7 +109,7 @@ class PackagingTest(unittest.TestCase):
 
     def test_widgets_plugin_selection_excludes_unrelated_qml_modules(self):
         with tempfile.TemporaryDirectory() as temp:
-            base = Path(temp)
+            base = Path(temp).resolve()
             source = base / 'Qt/plugins'
             app = base / 'MyPdf.app'
             for category, name in [('platforms', 'libqcocoa.dylib'),
@@ -114,7 +134,7 @@ class PackagingTest(unittest.TestCase):
 
     def test_matching_qt_framework_fallback_and_deployed_precedence(self):
         with tempfile.TemporaryDirectory(prefix='Qt framework ') as temp:
-            base = Path(temp)
+            base = Path(temp).resolve()
             bundler = package.Bundler.__new__(package.Bundler)
             bundler.frameworks = base / 'MyPdf.app/Contents/Frameworks'
             bundler.library_paths = [str(base / 'Qt/lib')]
