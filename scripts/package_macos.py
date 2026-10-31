@@ -40,12 +40,51 @@ def rpaths(path):
                       run('otool', '-l', path))
 
 
+def qt_paths(deploy):
+    # Query the same Qt installation as macdeployqt, never a qmake on PATH.
+    for name in ('qmake', 'qmake6'):
+        qmake = Path(deploy).parent / name
+        if qmake.is_file() and os.access(qmake, os.X_OK):
+            plugins = Path(run(qmake, '-query', 'QT_INSTALL_PLUGINS'))
+            libraries = Path(run(qmake, '-query', 'QT_INSTALL_LIBS'))
+            if plugins.is_dir() and libraries.is_dir():
+                return plugins, libraries
+    raise RuntimeError('Cannot query the matching Qt plugin/library paths beside {}'.format(deploy))
+
+
+def stage_qt_plugins(app, source):
+    # A Widgets application needs Cocoa and raster image support. Do not deploy
+    # unrelated QML virtual keyboards, QtPdf image readers or SVG icon engines.
+    plugins = app / 'Contents/PlugIns'
+    if plugins.exists():
+        shutil.rmtree(plugins)
+    selected = {'platforms': ('libqcocoa.dylib',),
+                'styles': ('libqmacstyle.dylib',),
+                'imageformats': ('libqjpeg.dylib', 'libqgif.dylib', 'libqico.dylib',
+                                 'libqicns.dylib', 'libqtiff.dylib', 'libqwebp.dylib',
+                                 'libqtga.dylib', 'libqwbmp.dylib')}
+    origins = {}
+    for category, names in selected.items():
+        for name in names:
+            original = source / category / name
+            if not original.is_file():
+                continue
+            destination = plugins / category / name
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(original, destination)
+            origins[destination.resolve()] = original.resolve()
+    if not (plugins / 'platforms/libqcocoa.dylib').is_file():
+        raise RuntimeError('Cocoa platform plugin missing from {}'.format(source))
+    return origins
+
+
 class Bundler:
-    def __init__(self, app):
+    def __init__(self, app, library_paths=()):
         self.app = app.resolve()
         self.frameworks = self.app / 'Contents/Frameworks'
         self.frameworks.mkdir(exist_ok=True)
         self.main = self.app / 'Contents/MacOS/MyPdf'
+        self.library_paths = [str(self.frameworks)] + [str(p) for p in library_paths]
         self.copied = {}
         self.done = set()
         self.arches = set(run('lipo', '-archs', self.main).split())
@@ -57,15 +96,25 @@ class Bundler:
 
     def resolve(self, value, loader, executable, search):
         if value.startswith('@rpath/'):
-            for base in search:
+            for base in [str(self.frameworks)] + list(search) + self.library_paths:
                 candidate = self.expand(base, loader, executable) / value[len('@rpath/'):]
                 if candidate.exists():
                     return candidate.resolve()
         else:
             candidate = self.expand(value, loader, executable)
             if candidate.is_absolute() and candidate.exists():
-                return candidate.resolve()
-        raise RuntimeError('Cannot resolve {} required by {}'.format(value, loader))
+                resolved = candidate.resolve()
+                # Plugins copied from this Qt may still use absolute framework
+                # names. Reuse the deployed framework instead of loading Qt twice.
+                framework = next((p for p in resolved.parents
+                                  if p.suffix == '.framework' and p.name.startswith('Qt')), None)
+                if framework:
+                    bundled = self.frameworks / framework.name / resolved.relative_to(framework)
+                    if bundled.exists():
+                        return bundled.resolve()
+                return resolved
+        raise RuntimeError('Cannot resolve {} required by {}. Searched: {}'.format(
+            value, loader, ', '.join(dict.fromkeys(list(search) + self.library_paths))))
 
     def copy(self, source):
         if source.is_relative_to(self.app):
@@ -166,6 +215,7 @@ def main():
     for path in (source, deploy, qpdf):
         if not path or not Path(path).exists():
             parser.error('Missing app or packaging tool: {!r}; rebuild with Qt macdeployqt and qpdf installed.'.format(path))
+    plugin_root, qt_libraries = qt_paths(deploy)
     output = args.output.absolute()
     if output.suffix != '.app' or output.exists():
         parser.error('--output must be a new .app path; move or remove the previous package first.')
@@ -178,17 +228,18 @@ def main():
         shutil.copy2(qpdf, helpers / 'qpdf')
         # Replace development qt.conf only in the staging copy.
         (app / 'Contents/Resources/qt.conf').unlink(missing_ok=True)
-        run(deploy, app, '-always-overwrite', '-no-codesign', '-verbose=1')
+        plugin_origins = stage_qt_plugins(app, plugin_root)
+        run(deploy, app, '-always-overwrite', '-no-plugins', '-no-codesign', '-verbose=1')
         (app / 'Contents/Resources/qt.conf').write_text(
             '[Paths]\nPlugins = PlugIns\nTranslations = Resources/translations\n')
         if not (app / 'Contents/PlugIns/platforms/libqcocoa.dylib').is_file():
             raise RuntimeError('macdeployqt did not deploy the Cocoa platform plugin.')
-        bundler = Bundler(app)
+        bundler = Bundler(app, library_paths=(qt_libraries,))
         bundler.visit(bundler.main)
         bundler.visit(helpers / 'qpdf', Path(qpdf).resolve(), Path(qpdf).resolve())
         for binary in list(app.rglob('*')):
             if macho(binary):
-                bundler.visit(binary)
+                bundler.visit(binary, original=plugin_origins.get(binary.resolve()))
         bundler.verify()
         for binary in sorted(bundler.done, key=lambda p: len(p.parts), reverse=True):
             run('codesign', '--force', '--sign', '-', binary)

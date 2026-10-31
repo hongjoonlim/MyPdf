@@ -216,6 +216,8 @@ open dist/MyPdf.app
 
 결과물은 `dist/MyPdf.app`입니다. 스크립트는 빌드 결과의 복사본에 [Qt 공식 `macdeployqt`](https://doc.qt.io/qt-6/macos-deployment.html)를 적용하고, `Contents/Helpers/qpdf`와 Qt·Poppler·qpdf가 연결하는 비시스템 라이브러리를 재귀적으로 포함합니다. 플러그인 경로와 라이브러리 참조를 앱 내부의 상대 경로로 바꾸고, 외부 참조·누락 파일·아키텍처를 검사합니다. 로컬 실행용 ad-hoc 서명과 서명 검증을 수행한 뒤, Qt/DYLD 환경 변수와 Homebrew PATH 없이 앱 시작 및 qpdf 실행을 확인합니다. 빌드 폴더의 개발용 `.app`은 변경하지 않습니다. 기존 출력은 덮어쓰지 않으므로 재패키징할 때 이전 결과를 이동하거나 `--output`으로 새 경로를 지정하세요.
 
+패키징은 Cocoa·래스터 이미지·macOS 스타일 플러그인을 명시적으로 선택합니다. MyPdf에서 사용하지 않는 Qt Virtual Keyboard/QML, QtPdf 이미지 플러그인과 SVG 아이콘 엔진은 포함하지 않습니다. `Cannot resolve @rpath/QtVirtualKeyboardQml.framework/...` 오류가 있었다면 최신 `scripts/package_macos.py`를 반영하고 패키징을 다시 실행하세요. 같은 Qt의 `qmake`로 라이브러리·플러그인 경로를 조회하므로 추가 Qt 모듈을 설치할 필요는 없습니다. 필요한 의존성을 찾지 못하면 검색한 경로를 오류에 표시합니다.
+
 ```bash
 ./scripts/package-macos.sh --build-dir build --config Debug --output dist/MyPdf-new.app
 ```

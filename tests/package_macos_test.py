@@ -87,6 +87,53 @@ class PackagingTest(unittest.TestCase):
                 with self.assertRaisesRegex(RuntimeError, 'Invalid bundled dependency'):
                     bundler.verify()
 
+    def test_widgets_plugin_selection_excludes_unrelated_qml_modules(self):
+        with tempfile.TemporaryDirectory() as temp:
+            base = Path(temp)
+            source = base / 'Qt/plugins'
+            app = base / 'MyPdf.app'
+            for category, name in [('platforms', 'libqcocoa.dylib'),
+                                   ('imageformats', 'libqjpeg.dylib'),
+                                   ('styles', 'libqmacstyle.dylib'),
+                                   ('platforminputcontexts', 'libqtvirtualkeyboardplugin.dylib'),
+                                   ('imageformats', 'libqpdf.dylib'),
+                                   ('iconengines', 'libqsvgicon.dylib')]:
+                path = source / category / name
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_bytes(b'plugin')
+            stale = app / 'Contents/PlugIns/platforminputcontexts/stale.dylib'
+            stale.parent.mkdir(parents=True)
+            stale.write_bytes(b'stale')
+            origins = package.stage_qt_plugins(app, source)
+            self.assertEqual({p.name for p in origins},
+                             {'libqcocoa.dylib', 'libqjpeg.dylib', 'libqmacstyle.dylib'})
+            self.assertFalse(stale.exists())
+            self.assertFalse((app / 'Contents/PlugIns/imageformats/libqpdf.dylib').exists())
+            self.assertEqual(origins[app / 'Contents/PlugIns/platforms/libqcocoa.dylib'],
+                             source / 'platforms/libqcocoa.dylib')
+
+    def test_matching_qt_framework_fallback_and_deployed_precedence(self):
+        with tempfile.TemporaryDirectory(prefix='Qt framework ') as temp:
+            base = Path(temp)
+            bundler = package.Bundler.__new__(package.Bundler)
+            bundler.frameworks = base / 'MyPdf.app/Contents/Frameworks'
+            bundler.library_paths = [str(base / 'Qt/lib')]
+            # A copied plugin may have no usable LC_RPATH after macdeployqt.
+            suffix = 'QtGui.framework/Versions/A/QtGui'
+            source = base / 'Qt/lib' / suffix
+            source.parent.mkdir(parents=True)
+            source.touch()
+            loader = base / 'MyPdf.app/Contents/PlugIns/platforms/libqcocoa.dylib'
+            self.assertEqual(bundler.resolve('@rpath/' + suffix, loader, loader, []), source)
+            staged = bundler.frameworks / suffix
+            staged.parent.mkdir(parents=True)
+            staged.touch()
+            self.assertEqual(bundler.resolve('@rpath/' + suffix, loader, loader,
+                                             [str(source.parents[3])]), staged)
+            self.assertEqual(bundler.resolve(str(source), loader, loader, []), staged)
+            with self.assertRaisesRegex(RuntimeError, 'Searched:'):
+                bundler.resolve('@rpath/Missing.framework/Missing', loader, loader, [])
+
     def test_otool_parsing_with_spaces_and_arch_headers(self):
         output = 'app (architecture arm64):\n\t/a path/lib.dylib (compatibility version 1.0.0)\n'
         output += 'app (architecture x86_64):\n\t/a path/lib.dylib (compatibility version 1.0.0)\n'

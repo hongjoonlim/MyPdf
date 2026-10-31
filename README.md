@@ -216,6 +216,8 @@ open dist/MyPdf.app
 
 The result is `dist/MyPdf.app`. The script applies [Qt's official `macdeployqt`](https://doc.qt.io/qt-6/macos-deployment.html) to a copy of the build, includes `Contents/Helpers/qpdf`, and recursively bundles non-system libraries linked by Qt, Poppler and qpdf. It replaces plugin paths and library references with bundle-relative paths and checks for external references, missing files and architecture mismatches. It applies and verifies local ad-hoc signatures, then checks app startup and qpdf execution without Qt/DYLD environment overrides or Homebrew on PATH. The development `.app` in the build directory is preserved. Existing output is never overwritten: move the previous package or select a new path with `--output`.
 
+Packaging explicitly selects Cocoa, raster image and macOS style plugins. Unused Qt Virtual Keyboard/QML, QtPdf image plugins and SVG icon engines are excluded. If packaging failed with `Cannot resolve @rpath/QtVirtualKeyboardQml.framework/...`, update `scripts/package_macos.py` and rerun packaging. Library/plugin paths are queried from the matching Qt installation through its `qmake`; installing additional Qt modules is unnecessary. Errors for required dependencies now include the searched paths.
+
 ```bash
 ./scripts/package-macos.sh --build-dir build --config Debug --output dist/MyPdf-new.app
 ```
