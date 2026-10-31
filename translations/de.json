@@ -159,17 +159,15 @@
     "Select Objects": "Objekte auswählen",
     "Click an added object to select it. Drag to move; drag a corner to resize.": "Hinzugefügtes Objekt anklicken. Zum Verschieben ziehen; Größe an den Ecken ändern.",
     "Select an added object first.": "Zuerst ein hinzugefügtes Objekt auswählen.",
-    "Fill Form…": "Formular ausfüllen…",
-    "Fill Form — Page %1": "Formular ausfüllen — Seite %1",
-    "Edit the fields on this page, then apply. Use Save to write the PDF.": "Füllen Sie die Felder dieser Seite aus und bestätigen Sie. Speichern Sie anschließend die PDF.",
     "This page has no supported form fields.": "Diese Seite enthält keine unterstützten Formularfelder.",
     "XFA forms are not supported.": "XFA-Formulare werden nicht unterstützt.",
     "Field %1": "Feld %1",
-    "Option %1": "Option %1",
     "Invalid or read-only form field.": "Ungültiges oder schreibgeschütztes Formularfeld.",
     "Unable to read PDF form fields.": "PDF-Formularfelder konnten nicht gelesen werden.",
     "Unable to save PDF form values.": "PDF-Formularwerte konnten nicht gespeichert werden.",
     "Form values updated. Save to keep your changes.": "Formularwerte aktualisiert. Speichern Sie Ihre Änderungen.",
-    "Licenses…": "Lizenzen…"
+    "Licenses…": "Lizenzen…",
+    "Fill Form": "Formular ausfüllen",
+    "Click a form field to edit it. Tab: next field. Esc: cancel the current edit.": "Klicken Sie zum Bearbeiten auf ein Formularfeld. Tab: nächstes Feld. Esc: aktuelle Eingabe verwerfen."
   }
 }

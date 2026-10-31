@@ -221,7 +221,7 @@ The top Sign, Highlight, Pages and Fit buttons all open their menu when clicking
 
 | Task | How |
 | --- | --- |
-| Fill PDF forms | Edit → Fill Form… (`Ctrl+Shift+F`), or click a field in Select mode. Edit the current page and confirm, then File → Save. Cancel discards dialog changes. |
+| Fill PDF forms | In Select mode, click directly into fields on the page. Checkboxes/radio buttons toggle on click; text and dropdowns edit in place. Tab moves between fields, Enter confirms single-line text, Ctrl+Enter confirms multiline text, and Esc discards the current uncommitted edit. File → Save also commits the focused input. Edit → Fill Form focuses the first editable field. |
 | Open and save | File → Open / Save / Save As. Opening DOCX imports it as PDF; the first save asks for a PDF destination. |
 | Add text/signatures | Select Text / Sign on the toolbar and place the object on the page. |
 | Highlight | Enable Highlighter from the top Highlight menu, then drag over the page. Use the same menu for color, thickness and opacity settings; hold Shift for horizontal strokes. Esc exits the pen. Use Select to move/delete a highlight, or double-click it to edit its style. |
@@ -231,7 +231,7 @@ The top Sign, Highlight, Pages and Fit buttons all open their menu when clicking
 
 Added text, signatures and highlights remain selectable and editable after saving and reopening in MyPdf, and display in other PDF viewers. Text/signatures already flattened into existing PDFs cannot be edited individually.
 
-AcroForm values remain interactive in the saved PDF, including when added text/signatures are present. Read-only fields are disabled. Existing fields only: creating form fields, XFA, JavaScript validation/calculation/actions and certificate signing are unsupported. Radio options without captions are numbered in page order; use their position in the original document to identify them. Text appearance depends on the fonts available in the PDF.
+AcroForm values remain interactive in the saved PDF, including when added text/signatures are present. Read-only fields are disabled. Existing fields only: creating form fields, XFA, JavaScript validation/calculation/actions and certificate signing are unsupported. Text appearance depends on the fonts available in the PDF.
 
 DOCX import supports basic paragraphs, styles, lists, tables and images. Fonts and pagination can differ from Word; complex drawings, equations, headers and footnotes have limited support. Check the layout before saving. The Word original is preserved. Legacy `.doc` and saving back to DOCX are unsupported.
 

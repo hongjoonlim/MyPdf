@@ -29,6 +29,8 @@ struct PdfFormField {
     QString label, group, text;
     bool readOnly=false, checked=false, multiline=false, password=false, editable=false, multiSelect=false;
     int maximumLength=-1;
+    double fontSize=0;
+    Qt::Alignment alignment=Qt::AlignLeft;
     QStringList choices;
     QList<int> selected;
 };

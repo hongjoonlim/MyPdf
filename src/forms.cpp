@@ -34,9 +34,11 @@ QList<PdfFormField> Document::formFields(int page) const {
             if (!button->caption().isEmpty()) item.label+=" — "+button->caption();
         } else if (auto *text=dynamic_cast<Poppler::FormFieldText *>(field.get())) {
             item.kind=PdfFormField::Text; item.text=text->text(); item.maximumLength=text->maximumLength();
+            item.fontSize=text->getFontSize(); item.alignment=text->textAlignment();
             item.multiline=text->textType()==Poppler::FormFieldText::Multiline; item.password=text->isPassword();
         } else if (auto *choice=dynamic_cast<Poppler::FormFieldChoice *>(field.get())) {
             item.kind=PdfFormField::Choice; item.choices=choice->choices(); item.selected=choice->currentChoices();
+            item.alignment=choice->textAlignment();
             item.editable=choice->isEditable(); item.multiSelect=choice->multiSelect(); item.text=choice->editChoice();
         } else continue;
         result.append(item);

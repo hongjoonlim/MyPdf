@@ -221,7 +221,7 @@ Die oberen Schaltflächen für Unterschrift, Markieren, Seiten und Anpassung öf
 
 | Aufgabe | Bedienung |
 | --- | --- |
-| PDF-Formulare ausfüllen | Bearbeiten → Formular ausfüllen… (`Ctrl+Shift+F`) oder im Auswahlmodus ein Feld anklicken. Die aktuelle Seite ausfüllen und bestätigen, danach Datei → Speichern. Abbrechen verwirft Dialogänderungen. |
+| PDF-Formulare ausfüllen | Im Auswahlmodus direkt in die Felder auf der Seite klicken. Kontrollkästchen/Optionsfelder per Klick wählen, Text und Auswahllisten direkt bearbeiten. Tab wechselt das Feld, Enter bestätigt einzeiligen Text, Ctrl+Enter mehrzeiligen Text und Esc verwirft die aktuelle unbestätigte Eingabe. Datei → Speichern übernimmt auch die fokussierte Eingabe. Bearbeiten → Formular ausfüllen fokussiert das erste bearbeitbare Feld. |
 | Öffnen und speichern | File → Open / Save / Save As. DOCX wird als PDF importiert; beim ersten Speichern den PDF-Zielpfad wählen. |
 | Text/Unterschriften hinzufügen | Text / Sign in der Werkzeugleiste wählen und auf der Seite platzieren. |
 | Markieren | Textmarker im oberen Menü Markieren aktivieren und über die Seite ziehen. Im selben Menü Farbe, Strichbreite und Deckkraft einstellen; Shift zeichnet waagerechte Striche. Esc beendet das Werkzeug. Markierungen mit Select auswählen, verschieben/löschen oder per Doppelklick bearbeiten. |
@@ -231,7 +231,7 @@ Die oberen Schaltflächen für Unterschrift, Markieren, Seiten und Anpassung öf
 
 Hinzugefügte Texte, Unterschriften und Markierungen bleiben nach Speichern und erneutem Öffnen in MyPdf bearbeitbar und werden in anderen PDF-Betrachtern angezeigt. Bereits in bestehende PDFs eingebettete Texte/Unterschriften sind nicht einzeln bearbeitbar.
 
-AcroForm-Werte bleiben in der gespeicherten PDF interaktiv, auch mit hinzugefügtem Text und Unterschriften. Schreibgeschützte Felder sind deaktiviert. Nur bestehende Felder: Feldanlage, XFA, JavaScript-Prüfungen/Berechnungen/Aktionen und Zertifikatssignaturen werden nicht unterstützt. Optionen ohne Beschriftung erhalten Nummern in Seitenreihenfolge; zur Zuordnung die Position im Original beachten. Die Textdarstellung hängt von verfügbaren PDF-Schriften ab.
+AcroForm-Werte bleiben in der gespeicherten PDF interaktiv, auch mit hinzugefügtem Text und Unterschriften. Schreibgeschützte Felder sind deaktiviert. Nur bestehende Felder: Feldanlage, XFA, JavaScript-Prüfungen/Berechnungen/Aktionen und Zertifikatssignaturen werden nicht unterstützt. Die Textdarstellung hängt von verfügbaren PDF-Schriften ab.
 
 DOCX-Import unterstützt grundlegende Absätze, Stile, Listen, Tabellen und Bilder. Schriften und Seitenumbrüche können von Word abweichen; komplexe Zeichnungen, Formeln, Kopfzeilen und Fußnoten sind eingeschränkt. Layout vor dem Speichern prüfen. Die Word-Originaldatei bleibt erhalten. Altes `.doc` und Rückspeichern als DOCX werden nicht unterstützt.
 

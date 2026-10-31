@@ -6,6 +6,8 @@
 #include <poppler-form.h>
 #include <iostream>
 #include <QTextBrowser>
+#include <QCheckBox>
+#include <QRadioButton>
 namespace {
 void check(bool ok,const char *message) { if (!ok) throw std::runtime_error(message); }
 PdfFormField field(const Document &doc,const QString &name,int occurrence=0,int page=0) {
@@ -33,13 +35,14 @@ int main(int argc,char **argv) {
         check(!field(doc,"delivery",0).checked && field(doc,"delivery",1).checked,"radio group selects exactly one option");
         doc.save(saved);
         { Document plain; plain.open(saved); check(field(plain,"name").text==name.text && field(plain,"agree").checked,"form-only PDF saves without editing metadata"); }
-        QTimer::singleShot(0,[&] {
-            if (auto *dialog=qobject_cast<QDialog *>(QApplication::activeModalWidget())) {
-                if (auto *input=dialog->findChild<QLineEdit *>("formField_"+QString::number(name.id))) input->setText("Discard this input");
-                dialog->reject();
-            }
-        });
-        check(!Forms::edit(doc,0,nullptr) && !doc.dirty() && field(doc,"name").text==name.text,"Cancel discards edited form values without dirtying document");
+        {
+            QWidget canvas; canvas.resize(612,792);
+            Forms::InlineEditor editor(doc,&canvas); editor.showPage(0);
+            auto *input=canvas.findChild<QLineEdit *>("formField_"+QString::number(name.id));
+            check(input!=nullptr,"text input is placed on the PDF canvas"); input->setText("Discard this input");
+            QKeyEvent escape(QEvent::KeyPress,Qt::Key_Escape,Qt::NoModifier); QApplication::sendEvent(input,&escape);
+            check(input->text()==name.text && !doc.dirty(),"Esc cancels the current inline edit");
+        }
         doc.addText(0,"Overlay survives",QFont("Sans",12),Qt::black,QPointF(.6,.8));
         doc.save(saved); Document reopened; reopened.open(saved);
         check(field(reopened,"name").text==name.text,"Unicode form value survives save and reopen");
@@ -66,29 +69,54 @@ int main(int argc,char **argv) {
 
         Window window; window.openPath(source); window.show(); app.processEvents();
         auto *command=window.findChild<QAction *>("fillFormAction"); check(command && command->isEnabled(),"form command is available");
-        bool inspected=false;
-        QTimer::singleShot(0,[&] {
-            auto *dialog=qobject_cast<QDialog *>(QApplication::activeModalWidget());
-            if (!dialog) return;
-            auto *input=dialog->findChild<QLineEdit *>("formField_"+QString::number(name.id));
-            auto *locked=dialog->findChild<QWidget *>("formField_"+QString::number(protectedValue.id));
-            inspected=input && locked && !locked->isEnabled();
-            if (input) input->setText("UI input");
-            dialog->accept();
-        });
-        command->trigger(); check(inspected && window.windowTitle().contains('*'),"form dialog edits text and disables read-only inputs");
-        bool clicked=false;
-        QTimer::singleShot(0,[&] { if (auto *dialog=qobject_cast<QDialog *>(QApplication::activeModalWidget())) { clicked=true; dialog->reject(); } });
+        command->trigger(); check(!QApplication::activeModalWidget(),"form command focuses fields without a dialog");
         auto *view=window.findChild<QWidget *>("pageView");
-        const QPointF location(field(doc,"name").rect.center().x()*view->width(),field(doc,"name").rect.center().y()*view->height());
-        QMouseEvent click(QEvent::MouseButtonPress,location,view->mapToGlobal(location.toPoint()),Qt::LeftButton,Qt::LeftButton,Qt::NoModifier);
-        QApplication::sendEvent(view,&click);
-        check(clicked,"clicking a page field opens the form editor");
-        bool canceled=false;
-        QTimer::singleShot(0,[&] { if (auto *dialog=qobject_cast<QDialog *>(QApplication::activeModalWidget())) { canceled=true; dialog->reject(); } });
-        command->trigger(); check(canceled,"form dialog can be canceled");
+        auto control=[&](const QString &key,int occurrence=0)->QWidget * {
+            Document original; original.open(source);
+            return view->findChild<QWidget *>("formField_"+QString::number(field(original,key,occurrence).id));
+        };
+        auto *input=qobject_cast<QLineEdit *>(control("name"));
+        auto *locked=qobject_cast<QLineEdit *>(control("locked"));
+        check(input && input->parentWidget()==view && locked && locked->isReadOnly(),"fields are inline and read-only inputs are protected");
+        check((input->geometry().center()-QPoint(qRound(field(doc,"name").rect.center().x()*view->width()),qRound(field(doc,"name").rect.center().y()*view->height()))).manhattanLength()<=2,"input covers its PDF field");
+        input->setFocus(); input->setText("Discard this");
+        QKeyEvent escape(QEvent::KeyPress,Qt::Key_Escape,Qt::NoModifier); QApplication::sendEvent(input,&escape);
+        check(input->text()=="Initial" && !window.windowTitle().contains('*'),"Esc discards only the uncommitted field edit");
+        input->setFocus(); input->setText("UI input");
+        QKeyEvent enter(QEvent::KeyPress,Qt::Key_Return,Qt::NoModifier); QApplication::sendEvent(input,&enter);
+        check(window.windowTitle().contains('*') && !QApplication::activeModalWidget(),"Enter commits inline text without a dialog");
+        auto *checkbox=qobject_cast<QCheckBox *>(control("agree")); checkbox->click();
+        auto *radioB=qobject_cast<QRadioButton *>(control("delivery",1)); radioB->click();
+        check(!qobject_cast<QRadioButton *>(control("delivery",0))->isChecked() && radioB->isChecked(),"radio buttons select directly on the page");
+        auto *choice=qobject_cast<QComboBox *>(control("country")); choice->setCurrentIndex(1);
+        QMetaObject::invokeMethod(choice,"activated",Qt::DirectConnection,Q_ARG(int,1));
+        auto *notesInput=qobject_cast<QTextEdit *>(control("notes")); notesInput->setPlainText("Inline first\nInline second");
+        QKeyEvent applyMultiline(QEvent::KeyPress,Qt::Key_Return,Qt::ControlModifier); QApplication::sendEvent(notesInput,&applyMultiline);
+        auto *editableChoice=qobject_cast<QComboBox *>(control("custom")); editableChoice->setEditText("Inline custom choice");
+        input->setFocus(); input->setText("Pending at save");
+        QAction *save=nullptr;
+        for (auto *action:window.findChildren<QAction *>()) if (action->text()=="Save") { save=action; break; }
+        check(save!=nullptr,"save action exists"); save->trigger();
+        { Document savedUi; savedUi.open(source);
+          check(field(savedUi,"name").text=="Pending at save" && field(savedUi,"agree").checked,"Save flushes focused text and direct checkbox input");
+          check(field(savedUi,"country").selected==QList<int>{1} && field(savedUi,"delivery",1).checked,"direct dropdown and radio choices persist");
+          check(field(savedUi,"notes").text=="Inline first\nInline second" && field(savedUi,"custom").text=="Inline custom choice","multiline and editable dropdown input persist"); }
+        input->setFocus();
+        QKeyEvent tab(QEvent::KeyPress,Qt::Key_Tab,Qt::NoModifier); QApplication::sendEvent(input,&tab);
+        check(QApplication::focusWidget()!=input,"Tab moves between inline fields");
+        auto *textTool=window.findChild<QToolButton *>("textTool"); textTool->click();
+        check(!input->isVisibleTo(view),"inline controls do not intercept text placement");
+        window.findChild<QToolButton *>("selectTool")->click(); check(input->isVisibleTo(view),"Select restores inline fields");
+        auto *zoom=window.findChild<QComboBox *>("zoomLevel"); zoom->setCurrentText("150%");
+        QMetaObject::invokeMethod(zoom,"activated",Qt::DirectConnection,Q_ARG(int,zoom->currentIndex()));
+        input=qobject_cast<QLineEdit *>(control("name"));
+        check(input && input->text()=="Pending at save" && input->geometry().right()<=view->width(),"zoom rebuilds fields in the correct positions");
+        input->setText("Before navigation");
+        auto *pageList=window.findChild<QListWidget *>("pageList"); pageList->setCurrentRow(1); pageList->setCurrentRow(0);
+        check(qobject_cast<QLineEdit *>(control("name"))->text()=="Before navigation","page changes preserve pending field input");
+        if (const auto path=qEnvironmentVariable("MYPDF_FORM_SCREENSHOT"); !path.isEmpty()) window.grab().save(path);
         window.findChild<QAction *>("language_ko")->trigger();
-        check(command->text()==I18n::text("Fill Form…"),"form menu is translated");
+        check(command->text()==I18n::text("Fill Form"),"form menu is translated");
         bool licensed=false;
         QTimer::singleShot(0,[&] {
             if (auto *dialog=qobject_cast<QDialog *>(QApplication::activeModalWidget())) {

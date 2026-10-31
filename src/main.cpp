@@ -1,5 +1,5 @@
 #include "document.h"
-#include "formsdialog.h"
+#include "formwidgets.h"
 #include "licenses.h"
 #include "docx.h"
 #include "icons.h"
@@ -211,13 +211,14 @@ class PageView : public QWidget {
 
 
 public:
-    std::function<bool(QPointF)> formClicked;
+    std::function<void(bool)> formModeChanged;
+    void updateFormMode() { if (formModeChanged) formModeChanged(!highlighting_ && !textPlacement_ && signature_.isNull()); }
     std::function<void(QPolygonF)> highlightPlaced;
     std::function<void()> highlightCanceled;
     void setHighlight(bool enabled, const QColor &color=QColor(255,235,59,90), double width=12) {
         highlighting_=enabled; highlightPoints_.clear(); highlightColor_=color; highlightWidth_=width;
         if (enabled) { selectObject({}); setFocusPolicy(Qt::StrongFocus); setFocus(); }
-        setCursor(enabled?Qt::CrossCursor:Qt::ArrowCursor); update();
+        setCursor(enabled?Qt::CrossCursor:Qt::ArrowCursor); updateFormMode(); update();
     }
     std::function<void(QString,QPoint)> objectContextMenu;
     std::function<void(QString)> objectEdited;
@@ -232,12 +233,12 @@ public:
     void setObjects(const QList<PageObject> &objects, const QHash<QString,QImage> &layers={}) { objects_=objects; layers_=layers; moving_=false; if (!selection()) selected_.clear(); update(); if (selectionChanged) selectionChanged(); }
     std::function<void(QPointF)> textPlaced;
     std::function<void()> textCanceled;
-    void setTextPlacement(bool enabled) { if (enabled) selectObject({}); textPlacement_=enabled; setCursor(enabled?Qt::IBeamCursor:Qt::ArrowCursor); if (enabled) { setFocusPolicy(Qt::StrongFocus); setFocus(); } }
+    void setTextPlacement(bool enabled) { if (enabled) selectObject({}); textPlacement_=enabled; updateFormMode(); setCursor(enabled?Qt::IBeamCursor:Qt::ArrowCursor); if (enabled) { setFocusPolicy(Qt::StrongFocus); setFocus(); } }
     std::function<void(QImage,QRectF)> placed;
     std::function<void()> signatureStateChanged;
     bool hasSignature() const { return !signature_.isNull(); }
     void setPage(QImage page) { highlightPoints_.clear(); page_ = std::move(page); setFixedSize(page_.deviceIndependentSize().toSize()); update(); }
-    void setSignature(QImage image) { if (!image.isNull()) selectObject({}); dragging_ = false; signature_ = std::move(image); setCursor(textPlacement_ ? Qt::IBeamCursor : (signature_.isNull() ? Qt::ArrowCursor : Qt::CrossCursor)); update(); if (signatureStateChanged) signatureStateChanged(); }
+    void setSignature(QImage image) { if (!image.isNull()) selectObject({}); dragging_ = false; signature_ = std::move(image); updateFormMode(); setCursor(textPlacement_ ? Qt::IBeamCursor : (signature_.isNull() ? Qt::ArrowCursor : Qt::CrossCursor)); update(); if (signatureStateChanged) signatureStateChanged(); }
 protected:
     void paintEvent(QPaintEvent *) override {
         QPainter p(this); p.setRenderHint(QPainter::SmoothPixmapTransform); p.fillRect(rect(),Qt::white); p.drawImage(0,0,page_);
@@ -312,7 +313,6 @@ protected:
         QString hit;
         for (auto it=objects_.crbegin();it!=objects_.crend();++it) if (pixels(it->rect).adjusted(-3,-3,3,3).contains(e->position())) { hit=it->id; break; }
         selectObject(hit);
-        if (hit.isEmpty() && formClicked && formClicked(pagePosition(e->position()))) return;
         if (const auto *object=selection()) { originalRect_=previewRect_=object->rect; moveStart_=e->position(); moving_=true; }
 
     }
@@ -410,6 +410,7 @@ class Window : public QMainWindow {
     QAction *saveDocument_ = nullptr, *saveAsDocument_ = nullptr;
     QListWidget *pages_ = new QListWidget;
     PageView *view_ = new PageView;
+    Forms::InlineEditor *formEditor_ = new Forms::InlineEditor(doc_,view_);
     QScrollArea *scroll_ = new QScrollArea;
     QLabel *status_ = new QLabel;
     QList<QAction *> requiresDoc_;
@@ -522,15 +523,8 @@ public:
         edit->addAction(addText_); edit->addMenu(sign); edit->addAction(cancelText_); edit->addSeparator();
         editObject_=action(edit,text("Edit Selected…"),QKeySequence(Qt::Key_F2),Icons::Symbol::Signature,[this] { if (!view_->selectedObject().isEmpty()) editObject(view_->selectedObject()); });
         deleteObject_=action(edit,text("Delete Selected Object"),{},Icons::Symbol::Trash,[this] { if (!view_->selectedObject().isEmpty()) removeSelectedObject(); });
-        auto *fill=action(edit,text("Fill Form…"),QKeySequence("Ctrl+Shift+F"),Icons::Symbol::Text,[this] { editForms(); });
+        auto *fill=action(edit,text("Fill Form"),QKeySequence("Ctrl+Shift+F"),Icons::Symbol::Text,[this] { editForms(); });
         fill->setObjectName("fillFormAction");
-        view_->formClicked=[this](QPointF point) {
-            const int page=pages_->currentRow(); if (!doc_.isOpen() || page<0) return false;
-            for (const auto &field:doc_.formFields(page)) if (field.rect.contains(point)) {
-                attempt([this,field] { editForms(field.id); }); return true;
-            }
-            return false;
-        };
         previous_ = action(display,text("Previous Page"),QKeySequence("Ctrl+PgUp"),Icons::Symbol::Previous,[this] { navigate(-1); });
         next_ = action(display,text("Next Page"),QKeySequence("Ctrl+PgDown"),Icons::Symbol::Next,[this] { navigate(1); });
         display->addSeparator();
@@ -675,6 +669,16 @@ public:
             catch (...) { thumbnails_.stop(); }
         });
         view_->setObjectName("pageView");
+        view_->formModeChanged=[this](bool enabled) { formEditor_->setInteractive(enabled); };
+        formEditor_->failed=[this](QString message) { QMessageBox::critical(this,"MyPdf",message); };
+        formEditor_->changed=[this](int page) {
+            if (page==pages_->currentRow()) {
+                const qreal scale=qMax(qreal(2),view_->devicePixelRatioF());
+                auto image=doc_.renderBase(page,dpi_*scale); image.setDevicePixelRatio(scale); view_->setPage(image);
+            }
+            title(); thumbnailRow_=0; thumbnails_.start(15);
+            setStatus("Form values updated. Save to keep your changes.");
+        };
         view_->signatureStateChanged=[this] { updateSignatureAction(); };
         view_->selectionChanged=[this] { updateObjectActions(); };
         view_->objectContextMenu=[this](QString,QPoint position) {
@@ -779,11 +783,14 @@ private:
         selectObjects_->setChecked(!highlight_->isChecked() && !addText_->isChecked() && !view_->hasSignature());
         cancelPlacement_->setVisible(doc_.isOpen() && (highlight_->isChecked() || addText_->isChecked() || view_->hasSignature()));
     }
-    void editForms(int focusId=-1) {
-        const int page=pages_->currentRow();
-        if (Forms::edit(doc_,page,this,focusId)) {
-            refresh(page); setStatus("Form values updated. Save to keep your changes.");
-        }
+    void editForms() {
+        highlight_->setChecked(false); view_->setHighlight(false);
+        addText_->setChecked(false); view_->setTextPlacement(false); view_->setSignature({});
+        updateSignatureAction();
+        if (doc_.hasXfaForm()) { setStatus("XFA forms are not supported."); return; }
+        if (doc_.formFields(pages_->currentRow()).isEmpty()) { setStatus("This page has no supported form fields."); return; }
+        formEditor_->focusFirst();
+        setStatus("Click a form field to edit it. Tab: next field. Esc: cancel the current edit.");
     }
     void removeSelectedObject() {
         const auto id=view_->selectedObject(); if (id.isEmpty()) return;
@@ -805,7 +812,7 @@ private:
         setDpi(scale*72);
     }
     void attempt(const std::function<void()> &fn) {
-        try { fn(); } catch (const std::exception &e) { QMessageBox::critical(this,"MyPdf",QString::fromUtf8(e.what())); }
+        try { formEditor_->commit(); fn(); } catch (const std::exception &e) { QMessageBox::critical(this,"MyPdf",QString::fromUtf8(e.what())); }
     }
     void title() {
         const QString path=doc_.path().isEmpty()?doc_.suggestedPath():doc_.path();
@@ -827,12 +834,16 @@ private:
         return dialog.exec()==QDialog::Accepted ? dialog.selectedFiles().value(0) : QString();
     }
     bool save(bool as) {
+        formEditor_->commit();
         QString path = doc_.path();
         if (as || path.isEmpty()) path = saveDialog(text("Save PDF"),path.isEmpty()?doc_.suggestedPath():path);
         if (path.isEmpty()) return false;
         doc_.save(path); updateSignatureAction(); title(); setStatus("Saved: %1",{path}); return true;
     }
     bool canClose() {
+        try { formEditor_->commit(); } catch (const std::exception &e) {
+            QMessageBox::critical(this,"MyPdf",QString::fromUtf8(e.what())); return false;
+        }
         if (!doc_.dirty()) return true;
         auto result = QMessageBox::question(this,text("Save Changes"),text("Do you want to save your changes?"),QMessageBox::Save|QMessageBox::Discard|QMessageBox::Cancel,QMessageBox::Save);
         if (result == QMessageBox::Cancel) return false;
@@ -861,7 +872,7 @@ private:
     }
     void showPage() {
         int row=pages_->currentRow();
-        if (!doc_.isOpen() || row<0) { view_->setFormFields({}); view_->setObjects({}); view_->setPage({}); setStatus("Open a PDF or DOCX file to get started."); return; }
+        if (!doc_.isOpen() || row<0) { formEditor_->clear(); view_->setFormFields({}); view_->setObjects({}); view_->setPage({}); setStatus("Open a PDF or DOCX file to get started."); return; }
         const qreal scale=qMax(qreal(2),view_->devicePixelRatioF());
         QImage image=doc_.renderBase(row,dpi_*scale);
         if (image.isNull()) throw std::runtime_error(text("Unable to display this page.").toStdString());
@@ -869,7 +880,7 @@ private:
         view_->setPage(image); view_->setPagePoints(doc_.size(row)); QHash<QString,QImage> layers;
         const auto objects=doc_.objects(row);
         for (const auto &object:objects) layers.insert(object.id,doc_.renderObject(object,dpi_*scale));
-        view_->setObjects(objects,layers); view_->setFormFields(doc_.formFields(row));
+        view_->setObjects(objects,layers); view_->setFormFields(doc_.formFields(row)); formEditor_->showPage(row);
         { QSignalBlocker block(pageNumber_); pageNumber_->setValue(row+1); }
         { QSignalBlocker block(zoom_); zoom_->setCurrentText(QString::number(qRound(dpi_/72*100))+"%"); }
         previous_->setEnabled(row>0); next_->setEnabled(row<doc_.count()-1);
