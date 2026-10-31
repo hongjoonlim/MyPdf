@@ -209,6 +209,9 @@ def main():
             '--custom-apprun', ROOT / 'packaging/AppRun', env=environment)
         bundle_extra_dependencies(deploy, appdir, environment)
         system_libraries = check_dependencies(appdir)
+        sys.path.insert(0, str(ROOT / 'scripts'))
+        from package_notices import linux_notices
+        linux_notices(appdir / 'usr/share/MyPdf/licenses', appdir)
         run(deploy / 'AppRun', '--appdir', appdir, '--custom-apprun', ROOT / 'packaging/AppRun',
             '--output', 'appimage', env=environment)
         image = work / output.name

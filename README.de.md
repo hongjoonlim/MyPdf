@@ -7,6 +7,7 @@ Ein C++17-/Qt-6-PDF-Editor für Ubuntu, Windows und macOS. PDFs lesen, Seiten or
 ## Funktionen
 
 - PDFs öffnen, schließen, speichern und unter anderem Namen speichern.
+- Bestehende AcroForm-Kontrollkästchen, Optionsfelder, Textfelder und Auswahllisten ausfüllen, speichern und erneut bearbeiten.
 - Seiten verschieben, ausgewählte Seiten als PDF extrahieren und leere Seiten, PDFs oder DOCX einfügen.
 - Text hinzufügen, Unterschriften zeichnen oder als Bild importieren.
 - Textmarker mit einstellbarer Farbe, Breite und Deckkraft; Shift für waagerechte Striche.
@@ -168,20 +169,20 @@ sudo apt install python3 binutils
 ./scripts/package-linux.sh
 ```
 
-Ergebnis: `dist/MyPdf-0.2.0-x86_64.AppImage`, `.sha256` und `.build.json`. Version und Architektur richten sich nach dem Build. Qt, Poppler, qpdf, C++-Laufzeit und erforderliche Plugins werden integriert; Empfänger müssen diese Pakete nicht separat installieren. [linuxdeploy](https://github.com/linuxdeploy/linuxdeploy), sein Qt-Plugin und die AppImage-Laufzeit werden beim ersten Aufruf aus offiziellen GitHub-Releases heruntergeladen und anhand veröffentlichter SHA-256-Werte geprüft. Die Werkzeuge werden unter `build/appimage-tools` zwischengespeichert und danach ohne erneuten Download verwendet. Die erste Paketierung benötigt Internetzugang.
+Ergebnis: `dist/MyPdf-0.3.0-x86_64.AppImage`, `.sha256` und `.build.json`. Version und Architektur richten sich nach dem Build. Qt, Poppler, qpdf, C++-Laufzeit und erforderliche Plugins werden integriert; Empfänger müssen diese Pakete nicht separat installieren. [linuxdeploy](https://github.com/linuxdeploy/linuxdeploy), sein Qt-Plugin und die AppImage-Laufzeit werden beim ersten Aufruf aus offiziellen GitHub-Releases heruntergeladen und anhand veröffentlichter SHA-256-Werte geprüft. Die Werkzeuge werden unter `build/appimage-tools` zwischengespeichert und danach ohne erneuten Download verwendet. Die erste Paketierung benötigt Internetzugang.
 
 Die **einzelne AppImage-Datei** weitergeben. Mit `.sha256` lässt sich die Integrität prüfen; `.build.json` dokumentiert Build-Umgebung, Systembibliotheken und Werkzeugversionen. Empfänger führen im Download-Verzeichnis aus:
 
 ```bash
-sha256sum -c MyPdf-0.2.0-x86_64.AppImage.sha256
-chmod +x MyPdf-0.2.0-x86_64.AppImage
-./MyPdf-0.2.0-x86_64.AppImage
+sha256sum -c MyPdf-0.3.0-x86_64.AppImage.sha256
+chmod +x MyPdf-0.3.0-x86_64.AppImage
+./MyPdf-0.3.0-x86_64.AppImage
 ```
 
 Die Prüfsummenprüfung nur ausführen, wenn auch `.sha256` mitgeliefert wurde. Ohne FUSE ist ein Start durch temporäres Entpacken ohne Installation möglich:
 
 ```bash
-APPIMAGE_EXTRACT_AND_RUN=1 ./MyPdf-0.2.0-x86_64.AppImage
+APPIMAGE_EXTRACT_AND_RUN=1 ./MyPdf-0.3.0-x86_64.AppImage
 ```
 
 Das AppImage kann in einem beliebigen Ordner liegen. Zum Aktualisieren die App beenden und durch die neue Version ersetzen. Vorhandene Pakete werden nicht überschrieben; bei Bedarf einen neuen Ausgabepfad wählen:
@@ -197,7 +198,7 @@ Native `x86_64` und `aarch64` werden unterstützt; lokal wurde bisher x86_64 gep
 Nach Release-Build und AppImage-Paketierung im Projektverzeichnis die App nach `~/.local/bin/MyPdf` kopieren. Eine laufende MyPdf-App vorher beenden. Administratorrechte sind nicht erforderlich; Ausführungsrechte werden mitgesetzt. Den Quelldateinamen an die tatsächlich erzeugte Version und Architektur anpassen.
 
 ```bash
-install -Dm755 dist/MyPdf-0.2.0-x86_64.AppImage "$HOME/.local/bin/MyPdf"
+install -Dm755 dist/MyPdf-0.3.0-x86_64.AppImage "$HOME/.local/bin/MyPdf"
 "$HOME/.local/bin/MyPdf"
 ```
 
@@ -220,6 +221,7 @@ Die oberen Schaltflächen für Unterschrift, Markieren, Seiten und Anpassung öf
 
 | Aufgabe | Bedienung |
 | --- | --- |
+| PDF-Formulare ausfüllen | Bearbeiten → Formular ausfüllen… (`Ctrl+Shift+F`) oder im Auswahlmodus ein Feld anklicken. Die aktuelle Seite ausfüllen und bestätigen, danach Datei → Speichern. Abbrechen verwirft Dialogänderungen. |
 | Öffnen und speichern | File → Open / Save / Save As. DOCX wird als PDF importiert; beim ersten Speichern den PDF-Zielpfad wählen. |
 | Text/Unterschriften hinzufügen | Text / Sign in der Werkzeugleiste wählen und auf der Seite platzieren. |
 | Markieren | Textmarker im oberen Menü Markieren aktivieren und über die Seite ziehen. Im selben Menü Farbe, Strichbreite und Deckkraft einstellen; Shift zeichnet waagerechte Striche. Esc beendet das Werkzeug. Markierungen mit Select auswählen, verschieben/löschen oder per Doppelklick bearbeiten. |
@@ -228,6 +230,8 @@ Die oberen Schaltflächen für Unterschrift, Markieren, Seiten und Anpassung öf
 | Sprache/Design | In Settings ändern. Die Menünamen hier entsprechen der englischen Oberfläche. |
 
 Hinzugefügte Texte, Unterschriften und Markierungen bleiben nach Speichern und erneutem Öffnen in MyPdf bearbeitbar und werden in anderen PDF-Betrachtern angezeigt. Bereits in bestehende PDFs eingebettete Texte/Unterschriften sind nicht einzeln bearbeitbar.
+
+AcroForm-Werte bleiben in der gespeicherten PDF interaktiv, auch mit hinzugefügtem Text und Unterschriften. Schreibgeschützte Felder sind deaktiviert. Nur bestehende Felder: Feldanlage, XFA, JavaScript-Prüfungen/Berechnungen/Aktionen und Zertifikatssignaturen werden nicht unterstützt. Optionen ohne Beschriftung erhalten Nummern in Seitenreihenfolge; zur Zuordnung die Position im Original beachten. Die Textdarstellung hängt von verfügbaren PDF-Schriften ab.
 
 DOCX-Import unterstützt grundlegende Absätze, Stile, Listen, Tabellen und Bilder. Schriften und Seitenumbrüche können von Word abweichen; komplexe Zeichnungen, Formeln, Kopfzeilen und Fußnoten sind eingeschränkt. Layout vor dem Speichern prüfen. Die Word-Originaldatei bleibt erhalten. Altes `.doc` und Rückspeichern als DOCX werden nicht unterstützt.
 
@@ -239,6 +243,7 @@ Unterschriften sind visuell, keine zertifikatsbasierten digitalen Signaturen. OC
 ctest --test-dir build --output-on-failure
 python3 tests/package_macos_test.py
 python3 tests/package_linux_test.py
+python3 tests/package_notices_test.py
 ```
 
 Der erste Befehl führt die Tests des gebauten Programms aus. Die weiteren Befehle prüfen mit Python 3 die macOS-/Linux-Paketierungslogik. GUI-Tests verwenden standardmäßig Cocoa unter macOS und offscreen auf anderen Systemen.
@@ -257,4 +262,8 @@ Der erste Befehl führt die Tests des gebauten Programms aus. Die weiteren Befeh
 
 `README.md` ist die englische Referenz. Deutsche und koreanische Fassungen behalten dieselbe Struktur und dieselben Befehle. Bei Änderungen an Funktionen, Abhängigkeiten oder Bereitstellung alle drei aktualisieren.
 
-Eine projektweite Lizenzdatei fehlt derzeit. Vor externer Weitergabe eine Projektlizenz festlegen und Lizenz-, Hinweis- und Quellcodebedingungen von Qt, Poppler, qpdf und mitgelieferten Bibliotheken prüfen.
+MyPdf steht unter **GPL-3.0-or-later**; siehe [LICENSE](LICENSE) und [NOTICE](NOTICE). Drittkomponenten behalten ihre Lizenzen: [Drittherstellerhinweise](THIRD_PARTY_NOTICES.md). Hilfe → Lizenzen… zeigt die Lizenztexte in der App an.
+
+CMake-Installation und Linux-/macOS-Pakete enthalten Lizenzdateien. Die Paketierung ergänzt `MyPdf-source.tar.gz`, installierte Abhängigkeitshinweise und `DEPENDENCIES.json` unter `share/MyPdf/licenses` (Linux) bzw. `Contents/Resources/licenses` (macOS). Die Windows-CMake-Installation legt Hinweise unter `share/MyPdf/licenses` ab.
+
+**Hinweise allein reichen für die Weitergabe von Binärdateien nicht aus.** Das Anwendungsquellarchiv enthält keine Abhängigkeitsquellen. Passende GPL-/LGPL-Quellen und Patches mit der Veröffentlichung bereitstellen und ungeklärte Paketdatensätze prüfen; siehe [DISTRIBUTING.md](DISTRIBUTING.md). Die Skripte zertifizieren keine Lizenzkonformität.

@@ -20,7 +20,9 @@ jobs:
         run: ./scripts/build.sh
 
       - name: Test Linux packaging logic
-        run: python3 tests/package_linux_test.py
+        run: |
+          python3 tests/package_linux_test.py
+          python3 tests/package_notices_test.py
       - name: Build Release AppImage
         run: |
           cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
@@ -87,7 +89,9 @@ jobs:
           test -f "$RUNNER_TEMP/MyPdf-install/MyPdf.app/Contents/Resources/MyPdf.icns"
           test -f "$RUNNER_TEMP/MyPdf-install/MyPdf.app/Contents/Resources/qt.conf"
       - name: Test dependency relocation
-        run: python3 tests/package_macos_test.py
+        run: |
+          python3 tests/package_macos_test.py
+          python3 tests/package_notices_test.py
       - name: Package standalone macOS app
         run: |
           ./scripts/package-macos.sh

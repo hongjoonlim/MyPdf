@@ -21,6 +21,23 @@ struct PageObject {
     double strokeWidth=12;
     bool isHighlight() const { return !highlight.isEmpty(); }
 };
+struct PdfFormField {
+    enum Kind { CheckBox, Radio, Text, Choice };
+    int id=0;
+    Kind kind=Text;
+    QRectF rect;
+    QString label, group, text;
+    bool readOnly=false, checked=false, multiline=false, password=false, editable=false, multiSelect=false;
+    int maximumLength=-1;
+    QStringList choices;
+    QList<int> selected;
+};
+struct PdfFormValue {
+    int id=0;
+    QString text;
+    bool checked=false;
+    QList<int> selected;
+};
 class Document {
 public:
     Document();
@@ -34,6 +51,9 @@ public:
     QImage render(int page, double dpi = 110) const;
     QImage renderBase(int page, double dpi) const;
     QImage renderObject(const PageObject &object, double dpi) const;
+    QList<PdfFormField> formFields(int page) const;
+    bool hasXfaForm() const;
+    void fillForm(int page, const QList<PdfFormValue> &values);
     void move(int from, int to);
     void insertBlank(int before);
     void insertPdf(const QString &path, int before);

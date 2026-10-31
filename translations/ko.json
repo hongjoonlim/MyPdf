@@ -158,6 +158,18 @@
     "Select an added highlight first.": "추가한 형광펜 표시를 먼저 선택하세요.",
     "Select Objects": "개체 선택",
     "Click an added object to select it. Drag to move; drag a corner to resize.": "추가한 개체를 클릭해서 선택하세요. 드래그로 이동하고 모서리로 크기를 조절합니다.",
-    "Select an added object first.": "추가한 개체를 먼저 선택하세요."
+    "Select an added object first.": "추가한 개체를 먼저 선택하세요.",
+    "Fill Form…": "양식 작성…",
+    "Fill Form — Page %1": "양식 작성 — %1페이지",
+    "Edit the fields on this page, then apply. Use Save to write the PDF.": "현재 페이지의 항목을 작성한 뒤 확인을 누르세요. PDF에 기록하려면 저장하세요.",
+    "This page has no supported form fields.": "이 페이지에는 지원하는 양식 필드가 없습니다.",
+    "XFA forms are not supported.": "XFA 양식은 지원하지 않습니다.",
+    "Field %1": "필드 %1",
+    "Option %1": "선택 항목 %1",
+    "Invalid or read-only form field.": "유효하지 않거나 읽기 전용인 양식 필드입니다.",
+    "Unable to read PDF form fields.": "PDF 양식 필드를 읽을 수 없습니다.",
+    "Unable to save PDF form values.": "PDF 양식 값을 저장할 수 없습니다.",
+    "Form values updated. Save to keep your changes.": "양식 값을 수정했습니다. 변경 내용을 보관하려면 저장하세요.",
+    "Licenses…": "라이선스…"
   }
 }

@@ -1,0 +1,21 @@
+<RCC>
+  <qresource prefix="/licenses">
+    <file>NOTICE</file>
+    <file>LICENSE</file>
+    <file>THIRD_PARTY_NOTICES.md</file>
+    <file>DISTRIBUTING.md</file>
+    <file>LICENSES/Apache-2.0.txt</file>
+    <file>LICENSES/AppImage-runtime.txt</file>
+    <file>LICENSES/GPL-2.0.txt</file>
+    <file>LICENSES/LGPL-2.0.txt</file>
+    <file>LICENSES/LGPL-2.1.txt</file>
+    <file>LICENSES/LGPL-3.0.txt</file>
+    <file>LICENSES/Poppler-notices.txt</file>
+    <file>LICENSES/Qt-notices.txt</file>
+    <file>LICENSES/musl-COPYRIGHT.txt</file>
+    <file>LICENSES/qpdf-notices.txt</file>
+    <file>LICENSES/squashfuse-LICENSE.txt</file>
+    <file>LICENSES/zlib-notices.txt</file>
+    <file>LICENSES/zstd-LICENSE.txt</file>
+  </qresource>
+</RCC>

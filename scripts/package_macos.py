@@ -252,6 +252,10 @@ def main():
             if macho(binary):
                 bundler.visit(binary, original=plugin_origins.get(binary.resolve()))
         bundler.verify()
+        sys.path.insert(0, str(Path(__file__).resolve().parent))
+        from package_notices import homebrew_notices
+        homebrew_notices(app / 'Contents/Resources/licenses',
+                         [Path(qpdf), plugin_root, qt_libraries] + list(bundler.copied))
         for binary in sorted(bundler.done, key=lambda p: len(p.parts), reverse=True):
             # Signing the main executable also validates its enclosing bundle.
             # Let the final app signature handle it after all nested code is signed.

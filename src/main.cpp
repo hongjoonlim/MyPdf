@@ -1,4 +1,6 @@
 #include "document.h"
+#include "formsdialog.h"
+#include "licenses.h"
 #include "docx.h"
 #include "icons.h"
 #include "i18n.h"
@@ -173,6 +175,7 @@ class PageView : public QWidget {
     }
     QSizeF pagePoints_{1,1};
     QList<PageObject> objects_;
+    QList<PdfFormField> formFields_;
     QHash<QString,QImage> layers_;
     int resizeCorner_ = -1;
     QString selected_;
@@ -208,6 +211,7 @@ class PageView : public QWidget {
 
 
 public:
+    std::function<bool(QPointF)> formClicked;
     std::function<void(QPolygonF)> highlightPlaced;
     std::function<void()> highlightCanceled;
     void setHighlight(bool enabled, const QColor &color=QColor(255,235,59,90), double width=12) {
@@ -221,6 +225,7 @@ public:
     std::function<void(QString,QPointF)> objectMoved;
     std::function<void(QString)> objectRemoved;
     std::function<void()> selectionChanged;
+    void setFormFields(const QList<PdfFormField> &fields) { formFields_=fields; update(); }
     void setPagePoints(QSizeF size) { setMouseTracking(true); pagePoints_=size; setFocusPolicy(Qt::StrongFocus); }
     QString selectedObject() const { return selected_; }
     void selectObject(const QString &id) { selected_=id; moving_=false; resizeCorner_=-1; update(); if (selectionChanged) selectionChanged(); }
@@ -240,6 +245,12 @@ protected:
             const QRectF target=pixels(moving_ && object.id==selected_?previewRect_:object.rect);
             const auto layer=layers_.constFind(object.id);
             if (layer!=layers_.cend()) p.drawImage(target,*layer);
+        }
+        if (!highlighting_ && !textPlacement_ && signature_.isNull()) {
+            for (const auto &field:formFields_) {
+                p.setPen(QPen(field.readOnly?QColor("#8c929b"):QColor("#4e8ccf"),1,Qt::DashLine));
+                p.setBrush(Qt::NoBrush); p.drawRect(pixels(field.rect));
+            }
         }
         if (!highlightPoints_.isEmpty()) {
             QPainterPath stroke;
@@ -301,6 +312,7 @@ protected:
         QString hit;
         for (auto it=objects_.crbegin();it!=objects_.crend();++it) if (pixels(it->rect).adjusted(-3,-3,3,3).contains(e->position())) { hit=it->id; break; }
         selectObject(hit);
+        if (hit.isEmpty() && formClicked && formClicked(pagePosition(e->position()))) return;
         if (const auto *object=selection()) { originalRect_=previewRect_=object->rect; moveStart_=e->position(); moving_=true; }
 
     }
@@ -510,6 +522,15 @@ public:
         edit->addAction(addText_); edit->addMenu(sign); edit->addAction(cancelText_); edit->addSeparator();
         editObject_=action(edit,text("Edit Selected…"),QKeySequence(Qt::Key_F2),Icons::Symbol::Signature,[this] { if (!view_->selectedObject().isEmpty()) editObject(view_->selectedObject()); });
         deleteObject_=action(edit,text("Delete Selected Object"),{},Icons::Symbol::Trash,[this] { if (!view_->selectedObject().isEmpty()) removeSelectedObject(); });
+        auto *fill=action(edit,text("Fill Form…"),QKeySequence("Ctrl+Shift+F"),Icons::Symbol::Text,[this] { editForms(); });
+        fill->setObjectName("fillFormAction");
+        view_->formClicked=[this](QPointF point) {
+            const int page=pages_->currentRow(); if (!doc_.isOpen() || page<0) return false;
+            for (const auto &field:doc_.formFields(page)) if (field.rect.contains(point)) {
+                attempt([this,field] { editForms(field.id); }); return true;
+            }
+            return false;
+        };
         previous_ = action(display,text("Previous Page"),QKeySequence("Ctrl+PgUp"),Icons::Symbol::Previous,[this] { navigate(-1); });
         next_ = action(display,text("Next Page"),QKeySequence("Ctrl+PgDown"),Icons::Symbol::Next,[this] { navigate(1); });
         display->addSeparator();
@@ -545,6 +566,8 @@ public:
         action(help,text("About MyPdf"),{},Icons::Symbol::Info,[this] {
             QMessageBox::about(this,text("About MyPdf"),text("<h3>MyPdf %1</h3><p>A PDF editor for organizing pages and adding signatures.</p><p>Signatures are visual marks drawn by hand or imported as images.</p>").arg(QStringLiteral(MYPDF_VERSION)));
         },false);
+
+        action(help,text("Licenses…"),{},Icons::Symbol::Info,[this] { Licenses::show(this); },false)->setObjectName("licensesAction");
 
         auto *quick=addToolBar(text("Main Tools")); quick->setObjectName("mainTools"); quick->setMovable(false); quick->setFloatable(false);
         quick->setIconSize(QSize(20,20)); quick->setToolButtonStyle(Qt::ToolButtonIconOnly);
@@ -756,6 +779,12 @@ private:
         selectObjects_->setChecked(!highlight_->isChecked() && !addText_->isChecked() && !view_->hasSignature());
         cancelPlacement_->setVisible(doc_.isOpen() && (highlight_->isChecked() || addText_->isChecked() || view_->hasSignature()));
     }
+    void editForms(int focusId=-1) {
+        const int page=pages_->currentRow();
+        if (Forms::edit(doc_,page,this,focusId)) {
+            refresh(page); setStatus("Form values updated. Save to keep your changes.");
+        }
+    }
     void removeSelectedObject() {
         const auto id=view_->selectedObject(); if (id.isEmpty()) return;
         doc_.removeObject(id); refresh(pages_->currentRow()); view_->setFocus();
@@ -832,7 +861,7 @@ private:
     }
     void showPage() {
         int row=pages_->currentRow();
-        if (!doc_.isOpen() || row<0) { view_->setObjects({}); view_->setPage({}); setStatus("Open a PDF or DOCX file to get started."); return; }
+        if (!doc_.isOpen() || row<0) { view_->setFormFields({}); view_->setObjects({}); view_->setPage({}); setStatus("Open a PDF or DOCX file to get started."); return; }
         const qreal scale=qMax(qreal(2),view_->devicePixelRatioF());
         QImage image=doc_.renderBase(row,dpi_*scale);
         if (image.isNull()) throw std::runtime_error(text("Unable to display this page.").toStdString());
@@ -840,7 +869,7 @@ private:
         view_->setPage(image); view_->setPagePoints(doc_.size(row)); QHash<QString,QImage> layers;
         const auto objects=doc_.objects(row);
         for (const auto &object:objects) layers.insert(object.id,doc_.renderObject(object,dpi_*scale));
-        view_->setObjects(objects,layers);
+        view_->setObjects(objects,layers); view_->setFormFields(doc_.formFields(row));
         { QSignalBlocker block(pageNumber_); pageNumber_->setValue(row+1); }
         { QSignalBlocker block(zoom_); zoom_->setCurrentText(QString::number(qRound(dpi_/72*100))+"%"); }
         previous_->setEnabled(row>0); next_->setEnabled(row<doc_.count()-1);

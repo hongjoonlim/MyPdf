@@ -7,6 +7,7 @@ A C++17 / Qt 6 PDF editor for Ubuntu, Windows and macOS. Read PDFs, organize pag
 ## Features
 
 - Open, close, save and save a copy of PDFs.
+- Fill existing AcroForm checkboxes, radio buttons, text fields and dropdowns; save and reopen to continue editing.
 - Reorder pages, extract selected pages into a new PDF, and insert blank pages, PDFs or DOCX files.
 - Add text, draw signatures or import signature images.
 - Highlight with adjustable color, thickness and opacity; hold Shift for horizontal strokes.
@@ -168,20 +169,20 @@ sudo apt install python3 binutils
 ./scripts/package-linux.sh
 ```
 
-Output: `dist/MyPdf-0.2.0-x86_64.AppImage`, `.sha256` and `.build.json`. Version and architecture follow the build. Qt, Poppler, qpdf, the C++ runtime and required plugins are bundled; recipients do not install these packages separately. On first use, [linuxdeploy](https://github.com/linuxdeploy/linuxdeploy), its Qt plugin and the AppImage runtime are downloaded from official GitHub releases and checked against published SHA-256 digests. Tools are cached under `build/appimage-tools` and reused without downloading again. Initial packaging needs an internet connection.
+Output: `dist/MyPdf-0.3.0-x86_64.AppImage`, `.sha256` and `.build.json`. Version and architecture follow the build. Qt, Poppler, qpdf, the C++ runtime and required plugins are bundled; recipients do not install these packages separately. On first use, [linuxdeploy](https://github.com/linuxdeploy/linuxdeploy), its Qt plugin and the AppImage runtime are downloaded from official GitHub releases and checked against published SHA-256 digests. Tools are cached under `build/appimage-tools` and reused without downloading again. Initial packaging needs an internet connection.
 
 Distribute the **single AppImage file**. Providing `.sha256` enables integrity checks; `.build.json` records the build environment, system libraries and tool versions. Recipients run these commands from the download folder:
 
 ```bash
-sha256sum -c MyPdf-0.2.0-x86_64.AppImage.sha256
-chmod +x MyPdf-0.2.0-x86_64.AppImage
-./MyPdf-0.2.0-x86_64.AppImage
+sha256sum -c MyPdf-0.3.0-x86_64.AppImage.sha256
+chmod +x MyPdf-0.3.0-x86_64.AppImage
+./MyPdf-0.3.0-x86_64.AppImage
 ```
 
 Run the checksum command only if the `.sha256` file was also provided. Without FUSE, extract and run without installing anything:
 
 ```bash
-APPIMAGE_EXTRACT_AND_RUN=1 ./MyPdf-0.2.0-x86_64.AppImage
+APPIMAGE_EXTRACT_AND_RUN=1 ./MyPdf-0.3.0-x86_64.AppImage
 ```
 
 Keep the AppImage in any folder. To update, quit the app and replace the AppImage with the new version. Packaging does not overwrite existing output; select a different path when needed:
@@ -197,7 +198,7 @@ Native `x86_64` and `aarch64` are supported; local validation currently covers x
 After the Release build and AppImage packaging, copy the app to `~/.local/bin/MyPdf` from the project directory. Quit any running MyPdf first. No administrator privileges are needed, and the command sets executable permissions. Replace the source filename with the actual version and architecture produced.
 
 ```bash
-install -Dm755 dist/MyPdf-0.2.0-x86_64.AppImage "$HOME/.local/bin/MyPdf"
+install -Dm755 dist/MyPdf-0.3.0-x86_64.AppImage "$HOME/.local/bin/MyPdf"
 "$HOME/.local/bin/MyPdf"
 ```
 
@@ -220,6 +221,7 @@ The top Sign, Highlight, Pages and Fit buttons all open their menu when clicking
 
 | Task | How |
 | --- | --- |
+| Fill PDF forms | Edit → Fill Form… (`Ctrl+Shift+F`), or click a field in Select mode. Edit the current page and confirm, then File → Save. Cancel discards dialog changes. |
 | Open and save | File → Open / Save / Save As. Opening DOCX imports it as PDF; the first save asks for a PDF destination. |
 | Add text/signatures | Select Text / Sign on the toolbar and place the object on the page. |
 | Highlight | Enable Highlighter from the top Highlight menu, then drag over the page. Use the same menu for color, thickness and opacity settings; hold Shift for horizontal strokes. Esc exits the pen. Use Select to move/delete a highlight, or double-click it to edit its style. |
@@ -228,6 +230,8 @@ The top Sign, Highlight, Pages and Fit buttons all open their menu when clicking
 | Language/theme | Change in Settings. Menu names here use the English interface. |
 
 Added text, signatures and highlights remain selectable and editable after saving and reopening in MyPdf, and display in other PDF viewers. Text/signatures already flattened into existing PDFs cannot be edited individually.
+
+AcroForm values remain interactive in the saved PDF, including when added text/signatures are present. Read-only fields are disabled. Existing fields only: creating form fields, XFA, JavaScript validation/calculation/actions and certificate signing are unsupported. Radio options without captions are numbered in page order; use their position in the original document to identify them. Text appearance depends on the fonts available in the PDF.
 
 DOCX import supports basic paragraphs, styles, lists, tables and images. Fonts and pagination can differ from Word; complex drawings, equations, headers and footnotes have limited support. Check the layout before saving. The Word original is preserved. Legacy `.doc` and saving back to DOCX are unsupported.
 
@@ -239,6 +243,7 @@ Signatures are visual, not certificate-based digital signatures. OCR, direct edi
 ctest --test-dir build --output-on-failure
 python3 tests/package_macos_test.py
 python3 tests/package_linux_test.py
+python3 tests/package_notices_test.py
 ```
 
 The first command runs the built application's tests. The other commands use Python 3 to test macOS/Linux packaging logic. GUI tests default to Cocoa on macOS and offscreen elsewhere.
@@ -257,4 +262,8 @@ The first command runs the built application's tests. The other commands use Pyt
 
 `README.md` is the English reference; German and Korean versions keep the same structure and commands. Update all three when features, dependencies or deployment instructions change.
 
-A project-wide license file is not yet included. Before external distribution, select a project license and review license, notice and source-availability conditions for Qt, Poppler, qpdf and bundled libraries.
+MyPdf is licensed under **GPL-3.0-or-later**; see [LICENSE](LICENSE) and [NOTICE](NOTICE). Third-party components keep their own licenses: [third-party notices](THIRD_PARTY_NOTICES.md). Help → Licenses… displays the license texts inside the app.
+
+CMake installation and Linux/macOS packages include license files. Packaging also includes `MyPdf-source.tar.gz`, installed dependency notices and `DEPENDENCIES.json` under `share/MyPdf/licenses` (Linux) or `Contents/Resources/licenses` (macOS). Windows CMake installation places notices under `share/MyPdf/licenses`.
+
+**Notices alone are insufficient for binary redistribution.** The application source snapshot does not include dependency source trees. Supply matching GPL/LGPL dependency sources and patches with your release, review unresolved package records, and follow [DISTRIBUTING.md](DISTRIBUTING.md). The scripts do not certify license compliance.
