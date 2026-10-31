@@ -53,13 +53,27 @@ int main(int argc,char **argv) {
         for (auto *button:window.findChildren<QToolButton *>()) if (button->objectName()=="highlightTool") {
             check(button->isVisibleTo(bar),"highlight tool visible at minimum window width");
             check(button->popupMode()==QToolButton::InstantPopup,"highlight opens the same popup as other menu tools");
-            QTimer::singleShot(0,button->menu(),&QMenu::close);
-            const QPointF center=button->rect().center();
-            mouse(button,QEvent::MouseButtonPress,center,Qt::LeftButton,Qt::LeftButton);
-            mouse(button,QEvent::MouseButtonRelease,center,Qt::LeftButton,Qt::NoButton);
-            check(!button->isChecked() && !window.findChild<QAction *>("highlightAction")->isChecked(),"dismissing the popup does not activate the pen");
+            auto *highlightAction=window.findChild<QAction *>("highlightAction");
+            check(highlightAction!=nullptr,"highlight action exists");
+            auto dismissPopup=[&] {
+                bool opened=false;
+                QTimer::singleShot(0,button->menu(),[&] {
+                    opened=button->menu()->isVisible();
+                    button->menu()->close();
+                });
+                // Let Qt handle the popup lifecycle without a synthetic release after its modal loop.
+                button->showMenu();
+                check(opened,"highlight popup opens before dismissal");
+                check(!button->menu()->isVisible(),"highlight popup closes");
+            };
+            dismissPopup();
+            check(!highlightAction->isChecked(),"dismissing the popup does not activate the pen action");
+            check(!button->isChecked(),"dismissing the popup keeps the pen button inactive");
             check(button->menu()->actions().contains(window.findChild<QAction *>("highlightAction")),"highlight action is available in its popup");
             button->menu()->actions().first()->trigger();
+            check(highlightAction->isChecked() && button->isChecked(),"choosing the pen synchronizes action and button");
+            dismissPopup();
+            check(highlightAction->isChecked() && button->isChecked(),"dismissing the popup preserves an active pen");
         }
         auto *pen=window.findChild<QAction *>("highlightAction"); check(pen && pen->isChecked(),"highlight tool activates");
         auto *view=dynamic_cast<PageView *>(window.findChild<QWidget *>("pageView"));
