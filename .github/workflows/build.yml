@@ -49,8 +49,11 @@ jobs:
         run: brew install cmake ninja pkgconf qtbase qttranslations poppler-qt6 qpdf zlib vulkan-headers
       - name: Build and test
         run: ./scripts/build.sh
+      - name: Launch macOS app
+        run: MYPDF_SMOKE_TEST=1 ./scripts/run.sh
       - name: Check app bundle installation
         run: |
           cmake --install build --prefix "$RUNNER_TEMP/MyPdf-install"
           test -f "$RUNNER_TEMP/MyPdf-install/MyPdf.app/Contents/MacOS/MyPdf"
           test -f "$RUNNER_TEMP/MyPdf-install/MyPdf.app/Contents/Resources/MyPdf.icns"
+          test -f "$RUNNER_TEMP/MyPdf-install/MyPdf.app/Contents/Resources/qt.conf"

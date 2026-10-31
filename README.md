@@ -139,6 +139,17 @@ ctest --test-dir build -R '^(object_editing|native_docx)$' -V --timeout 120
 
 Do not enter anything manually. On failure, inspect the file path and active window title in the timeout message, plus `LastTest.log`. This change affects test automation; the real application still lets users select signature images themselves.
 
+#### macOS: tests pass but launching cannot find the `cocoa` plugin
+
+Test plugin paths and application launch settings are separate. CMake now records the Cocoa plugin path from the linked Qt installation in `MyPdf.app/Contents/Resources/qt.conf`. Qt reads [this bundle configuration file](https://doc.qt.io/qt-6/qt-conf.html), covering both `run.sh` and direct app launches. Update `CMakeLists.txt` and `cmake/macos_runtime.cmake` on the Mac, then rebuild:
+
+```bash
+./scripts/build.sh
+./scripts/run.sh
+```
+
+Reinstall the rebuilt `.app` if using an installed copy. This is a local development configuration referencing Qt installed on that Mac. Copying the app alone to another Mac requires a separate deployment step bundling Qt libraries and plugins. If launching still fails, inspect the actual plugin paths and loading errors with `QT_DEBUG_PLUGINS=1 ./scripts/run.sh`.
+
 #### macOS: `Could NOT find WrapVulkanHeaders (missing Vulkan_INCLUDE_DIR)`
 
 This is Qt's probe for optional Vulkan headers, not necessarily a fatal build error. MyPdf uses Qt Widgets, QPainter and Poppler, and does not call Vulkan. If CMake reaches `Configuring done` and `Generating done`, this message did not stop configuration. If configuration fails, inspect the following `CMake Error` and dependency messages as well. Qt marks this dependency optional in its [configuration source](https://github.com/qt/qtbase/blob/6.10/src/gui/configure.cmake#L74-L75).

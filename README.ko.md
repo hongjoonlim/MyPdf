@@ -139,6 +139,17 @@ ctest --test-dir build -R '^(object_editing|native_docx)$' -V --timeout 120
 
 창에 직접 입력할 필요는 없습니다. 실패하면 시간 초과 메시지의 파일 경로·활성 창 제목과 `LastTest.log`를 확인합니다. 이 변경은 테스트 자동화에 대한 것으로, 실제 프로그램의 서명 이미지 선택은 계속 사용자가 수행합니다.
 
+#### macOS: 테스트는 통과하지만 실행 시 `cocoa` 플러그인을 찾지 못하는 경우
+
+테스트용 플러그인 경로 설정과 앱 실행 설정은 별개입니다. CMake는 이제 빌드에 연결한 Qt의 Cocoa 플러그인 경로를 `MyPdf.app/Contents/Resources/qt.conf`에 기록합니다. Qt는 [앱 번들의 이 설정 파일](https://doc.qt.io/qt-6/qt-conf.html)을 읽으므로 `run.sh` 실행과 앱 직접 실행에 모두 적용됩니다. 수정된 `CMakeLists.txt`와 `cmake/macos_runtime.cmake`를 Mac에도 반영하고 다시 빌드하세요.
+
+```bash
+./scripts/build.sh
+./scripts/run.sh
+```
+
+기존에 설치한 앱을 사용한다면 재빌드한 `.app`으로 다시 설치하세요. 이 설정은 해당 Mac에 설치된 Qt를 참조하는 로컬 개발용입니다. 다른 Mac에 앱만 복사하려면 Qt 라이브러리와 플러그인을 포함하는 별도의 배포 작업이 필요합니다. 계속 실패하면 `QT_DEBUG_PLUGINS=1 ./scripts/run.sh` 출력에서 실제 플러그인 경로와 로딩 오류를 확인하세요.
+
 #### macOS: `Could NOT find WrapVulkanHeaders (missing Vulkan_INCLUDE_DIR)`
 
 Qt가 **선택적인 Vulkan 헤더**를 찾지 못했다는 메시지이며, 이 한 줄이 반드시 빌드 실패를 뜻하지는 않습니다. MyPdf는 Qt Widgets·QPainter·Poppler를 사용하고 Vulkan API를 직접 호출하지 않습니다. 이후 `Configuring done`, `Generating done`이 나오면 구성은 성공한 것입니다. 구성이 중단된다면 뒤이어 나오는 `CMake Error`와 다른 의존성 오류도 확인하세요. Qt도 이 의존성을 [구성 소스에서 선택 항목으로 표시](https://github.com/qt/qtbase/blob/6.10/src/gui/configure.cmake#L74-L75)합니다.

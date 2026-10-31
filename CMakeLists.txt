@@ -63,6 +63,7 @@ elseif(APPLE)
     MACOSX_BUNDLE_ICON_FILE MyPdf.icns
     MACOSX_BUNDLE_SHORT_VERSION_STRING "${PROJECT_VERSION}"
     MACOSX_BUNDLE_BUNDLE_VERSION "${PROJECT_VERSION}")
+  include(cmake/macos_runtime.cmake)
 endif()
 
 include(CTest)
