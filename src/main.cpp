@@ -16,6 +16,8 @@
 #include <QMainWindow>
 #include <QWidget>
 #include <QPainter>
+#include <QPainterPath>
+#include <QResizeEvent>
 #include <QMouseEvent>
 #include <QScrollArea>
 #include <QListWidget>
@@ -93,6 +95,11 @@ static void applyApplicationTheme(bool dark) {
         QToolButton { padding: 7px 9px; border-radius: 5px; }
         QToolButton:hover { background: %2; }
         QToolButton:checked { color: %5; background: %6; }
+        QToolButton[popupMenu="true"] { padding-right: 24px; }
+        QToolButton[popupMenu="true"]::menu-indicator {
+            subcontrol-origin: padding; subcontrol-position: right center;
+            right: 7px; width: 10px; height: 10px;
+        }
         QToolBar#mainTools { padding: 8px 12px; spacing: 5px; }
         QLabel#filename { padding-left: 12px; font-weight: 600; }
         QLabel#sideTitle { padding: 14px; font-weight: 600; background: %1; }
@@ -151,6 +158,19 @@ class PageView : public QWidget {
     QPointF start_, end_;
     bool dragging_ = false;
     bool textPlacement_ = false;
+    bool highlighting_=false;
+    QPolygonF highlightPoints_;
+    QColor highlightColor_{255,235,59,90};
+    double highlightWidth_=12;
+    QPointF pagePosition(QPointF point) const { return QPointF(qBound(0.,point.x()/width(),1.),qBound(0.,point.y()/height(),1.)); }
+    void extendHighlight(QPointF point, Qt::KeyboardModifiers modifiers) {
+        if (highlightPoints_.isEmpty()) return;
+        QPointF position=pagePosition(point);
+        if (modifiers & Qt::ShiftModifier) {
+            position.setY(highlightPoints_.first().y());
+            highlightPoints_={highlightPoints_.first(),position};
+        } else if (highlightPoints_.size()<20000 && position!=highlightPoints_.last()) highlightPoints_.append(position);
+    }
     QSizeF pagePoints_{1,1};
     QList<PageObject> objects_;
     QHash<QString,QImage> layers_;
@@ -188,6 +208,13 @@ class PageView : public QWidget {
 
 
 public:
+    std::function<void(QPolygonF)> highlightPlaced;
+    std::function<void()> highlightCanceled;
+    void setHighlight(bool enabled, const QColor &color=QColor(255,235,59,90), double width=12) {
+        highlighting_=enabled; highlightPoints_.clear(); highlightColor_=color; highlightWidth_=width;
+        if (enabled) { selectObject({}); setFocusPolicy(Qt::StrongFocus); setFocus(); }
+        setCursor(enabled?Qt::CrossCursor:Qt::ArrowCursor); update();
+    }
     std::function<void(QString,QPoint)> objectContextMenu;
     std::function<void(QString)> objectEdited;
     std::function<void(QString,QRectF)> objectResized;
@@ -204,7 +231,7 @@ public:
     std::function<void(QImage,QRectF)> placed;
     std::function<void()> signatureStateChanged;
     bool hasSignature() const { return !signature_.isNull(); }
-    void setPage(QImage page) { page_ = std::move(page); setFixedSize(page_.deviceIndependentSize().toSize()); update(); }
+    void setPage(QImage page) { highlightPoints_.clear(); page_ = std::move(page); setFixedSize(page_.deviceIndependentSize().toSize()); update(); }
     void setSignature(QImage image) { if (!image.isNull()) selectObject({}); dragging_ = false; signature_ = std::move(image); setCursor(textPlacement_ ? Qt::IBeamCursor : (signature_.isNull() ? Qt::ArrowCursor : Qt::CrossCursor)); update(); if (signatureStateChanged) signatureStateChanged(); }
 protected:
     void paintEvent(QPaintEvent *) override {
@@ -213,6 +240,16 @@ protected:
             const QRectF target=pixels(moving_ && object.id==selected_?previewRect_:object.rect);
             const auto layer=layers_.constFind(object.id);
             if (layer!=layers_.cend()) p.drawImage(target,*layer);
+        }
+        if (!highlightPoints_.isEmpty()) {
+            QPainterPath stroke;
+            for (int i=0;i<highlightPoints_.size();++i) {
+                const QPointF point(highlightPoints_[i].x()*width(),highlightPoints_[i].y()*height());
+                if (i==0) stroke.moveTo(point); else stroke.lineTo(point);
+            }
+            p.setRenderHint(QPainter::Antialiasing);
+            p.setPen(QPen(highlightColor_,highlightWidth_*width()/pagePoints_.width(),Qt::SolidLine,Qt::RoundCap,Qt::RoundJoin));
+            p.drawPath(stroke);
         }
         if (const auto *object=selection()) {
             const QRectF box=pixels(moving_?previewRect_:object->rect);
@@ -223,6 +260,9 @@ protected:
         if (dragging_) { auto r = QRectF(start_,end_).normalized(); p.drawImage(r, signature_); p.setPen(Qt::DashLine); p.drawRect(r); }
     }
     void keyPressEvent(QKeyEvent *e) override {
+        if (e->key()==Qt::Key_Escape && highlighting_) {
+            highlightPoints_.clear(); update(); if (highlightCanceled) highlightCanceled(); e->accept(); return;
+        }
         if (e->key()==Qt::Key_Escape && textPlacement_) { if (textCanceled) textCanceled(); e->accept(); return; }
         if (selection() && !textPlacement_ && signature_.isNull()) {
             if (e->key()==Qt::Key_F2 || e->key()==Qt::Key_Return || e->key()==Qt::Key_Enter) { selectObject(selected_); if (objectEdited) objectEdited(selected_); e->accept(); return; }
@@ -238,6 +278,10 @@ protected:
         QWidget::keyPressEvent(e);
     }
     void mousePressEvent(QMouseEvent *e) override {
+        if (highlighting_) {
+            if (e->button()==Qt::LeftButton) { setFocus(); highlightPoints_={pagePosition(e->position())}; update(); }
+            return;
+        }
         if (textPlacement_ && e->button()==Qt::LeftButton) {
             if (textPlaced) textPlaced(QPointF(e->position().x()/width(),e->position().y()/height()));
             return;
@@ -261,7 +305,7 @@ protected:
 
     }
     void mouseDoubleClickEvent(QMouseEvent *e) override {
-        if (e->button()!=Qt::LeftButton || textPlacement_ || !signature_.isNull()) { e->ignore(); return; }
+        if (e->button()!=Qt::LeftButton || highlighting_ || textPlacement_ || !signature_.isNull()) { e->ignore(); return; }
         QString hit;
         for (auto it=objects_.crbegin();it!=objects_.crend();++it) if (pixels(it->rect).contains(e->position())) { hit=it->id; break; }
         selectObject(hit);
@@ -269,6 +313,7 @@ protected:
         e->accept();
     }
     void mouseMoveEvent(QMouseEvent *e) override {
+        if (highlighting_) { if (!highlightPoints_.isEmpty()) { extendHighlight(e->position(),e->modifiers()); update(); } return; }
         if (moving_) {
             updatePreview(e->position()); update(); return;
         }
@@ -279,6 +324,12 @@ protected:
         if (dragging_) { end_ = QPointF(qBound(0.,e->position().x(),double(width())),qBound(0.,e->position().y(),double(height()))); update(); }
     }
     void mouseReleaseEvent(QMouseEvent *e) override {
+        if (highlighting_ && e->button()==Qt::LeftButton) {
+            extendHighlight(e->position(),e->modifiers());
+            const auto points=highlightPoints_; highlightPoints_.clear(); update();
+            if (points.size()>1 && (points.boundingRect().width()>0 || points.boundingRect().height()>0) && highlightPlaced) highlightPlaced(points);
+            return;
+        }
         if (moving_ && e->button()==Qt::LeftButton) {
             updatePreview(e->position()); moving_=false;
             const int handle=resizeCorner_; resizeCorner_=-1;
@@ -360,6 +411,9 @@ class Window : public QMainWindow {
     QComboBox *zoom_ = new QComboBox;
     QAction *previous_ = nullptr, *next_ = nullptr, *moveUp_ = nullptr, *moveDown_ = nullptr;
     QAction *cancelSignature_ = nullptr;
+    QAction *highlight_ = nullptr;
+    QColor highlightColor_{255,235,59,90};
+    double highlightWidth_=12;
     QAction *addText_ = nullptr, *cancelText_ = nullptr, *deleteObject_ = nullptr;
     QTimer thumbnails_;
     int thumbnailRow_ = 0;
@@ -418,7 +472,27 @@ public:
         });
         file->addSeparator();
         action(file,text("Exit"),QKeySequence::Quit,Icons::Symbol::Exit,[this] { close(); },false);
+        const QSettings penSettings;
+        const QColor savedColor(penSettings.value("highlight/color",QString("#5affeb3b")).toString());
+        if (savedColor.isValid() && savedColor.alpha()>0) highlightColor_=savedColor;
+        highlightWidth_=qBound(1.,penSettings.value("highlight/width",12).toDouble(),72.);
+        highlight_=action(edit,text("Highlighter"),{},Icons::Symbol::Highlight,[this] {
+            addText_->setChecked(false); view_->setTextPlacement(false); view_->setSignature({});
+            view_->setHighlight(highlight_->isChecked(),highlightColor_,highlightWidth_); updateSignatureAction();
+            if (highlight_->isChecked()) setStatus("Drag to highlight. Hold Shift for a straight line. Press Esc to finish.");
+        });
+        highlight_->setCheckable(true); highlight_->setObjectName("highlightAction");
+        auto *highlightMenu=new QMenu(this);
+        highlightMenu->addAction(highlight_); highlightMenu->addSeparator();
+        auto *penSettingsAction=action(highlightMenu,text("Highlighter Settings…"),{},Icons::Symbol::Highlight,[this] { editHighlight(); },false);
+        edit->addAction(penSettingsAction);
+        view_->highlightCanceled=[this] { highlight_->setChecked(false); view_->setHighlight(false); updateSignatureAction(); setStatus("Ready · Pages: %1",{QString::number(doc_.count())}); };
+        view_->highlightPlaced=[this](QPolygonF points) { attempt([this,points] {
+            const int page=pages_->currentRow(); doc_.addHighlight(page,points,highlightColor_,highlightWidth_);
+            refresh(page); highlight_->setChecked(true); view_->setHighlight(true,highlightColor_,highlightWidth_); updateSignatureAction();
+        }); };
         addText_=action(edit,text("Add Text…"),QKeySequence("Ctrl+Shift+T"),Icons::Symbol::Text,[this] {
+            highlight_->setChecked(false); view_->setHighlight(false);
             view_->setSignature({}); view_->setTextPlacement(addText_->isChecked());
             if (addText_->isChecked()) setStatus("Click the page to add text. Press Esc to cancel.");
         });
@@ -426,9 +500,10 @@ public:
         view_->textCanceled=[this] { addText_->setChecked(false); view_->setTextPlacement(false); updateSignatureAction(); setStatus("Text placement canceled."); };
         cancelText_=action(edit,text("Cancel Text Placement"),QKeySequence(Qt::Key_Escape),Icons::Symbol::Cancel,[this] { view_->textCanceled(); });
         view_->textPlaced=[this](QPointF position) { attempt([this,position] { insertText(position); }); };
-        selectObjects_=action(edit,text("Select Text or Signature"),{},Icons::Symbol::Select,[this] {
+        selectObjects_=action(edit,text("Select Objects"),{},Icons::Symbol::Select,[this] {
+            highlight_->setChecked(false); view_->setHighlight(false);
             addText_->setChecked(false); view_->setTextPlacement(false); view_->setSignature({}); view_->setFocus();
-            setStatus("Click text or a signature to select it. Drag to move; drag a corner to resize.");
+            setStatus("Click an added object to select it. Drag to move; drag a corner to resize.");
         });
         selectObjects_->setCheckable(true); selectObjects_->setObjectName("selectObjects");
         edit->removeAction(addText_); edit->removeAction(cancelText_);
@@ -468,7 +543,7 @@ public:
             setStatus("Signature placement canceled.");
         });
         action(help,text("About MyPdf"),{},Icons::Symbol::Info,[this] {
-            QMessageBox::about(this,text("About MyPdf"),text("<h3>MyPdf 0.1</h3><p>A PDF editor for organizing pages and adding signatures.</p><p>Signatures are visual marks drawn by hand or imported as images.</p>"));
+            QMessageBox::about(this,text("About MyPdf"),text("<h3>MyPdf %1</h3><p>A PDF editor for organizing pages and adding signatures.</p><p>Signatures are visual marks drawn by hand or imported as images.</p>").arg(QStringLiteral(MYPDF_VERSION)));
         },false);
 
         auto *quick=addToolBar(text("Main Tools")); quick->setObjectName("mainTools"); quick->setMovable(false); quick->setFloatable(false);
@@ -477,20 +552,23 @@ public:
         filename_->setObjectName("filename"); filename_->setTextInteractionFlags(Qt::TextSelectableByMouse);
         filename_->setMinimumWidth(110); filename_->setSizePolicy(QSizePolicy::Expanding,QSizePolicy::Preferred); quick->addWidget(filename_);
         quick->addSeparator();
-        auto compactTool=[&](QAction *a,const QString &label,const QString &name,QMenu *menu=nullptr,bool primary=false) {
+        auto compactTool=[&](QAction *a,const QString &label,const QString &name,QMenu *menu=nullptr) {
             auto *button=new QToolButton; button->setObjectName(name); button->setProperty("compactLabel",true);
             button->setToolButtonStyle(Qt::ToolButtonTextBesideIcon); button->setIconSize(QSize(20,20));
             auto sync=[button,a,label] {
                 button->setText(text(label)); button->setEnabled(a->isEnabled()); button->setCheckable(a->isCheckable()); button->setChecked(a->isChecked());
                 button->setToolTip(a->toolTip()); button->setIcon(label=="Pages"?Icons::line(Icons::Symbol::Table):a->icon());
             };
-            sync(); connect(a,&QAction::changed,button,sync); connect(button,&QToolButton::clicked,a,&QAction::trigger);
-            if (menu) { button->setMenu(menu); button->setPopupMode(primary?QToolButton::MenuButtonPopup:QToolButton::InstantPopup); }
+            sync(); connect(a,&QAction::changed,button,sync);
+            if (menu) {
+                button->setProperty("popupMenu",true); button->setMenu(menu); button->setPopupMode(QToolButton::InstantPopup);
+            } else connect(button,&QToolButton::clicked,a,&QAction::trigger);
             quick->addWidget(button); return button;
         };
         compactTool(selectObjects_,"Select","selectTool");
         compactTool(addText_,"Text","textTool");
-        compactTool(draw,"Sign","signatureTool",sign,true);
+        compactTool(draw,"Sign","signatureTool",sign);
+        compactTool(highlight_,"Highlight","highlightTool",highlightMenu);
         requiresDoc_.append(organize->menuAction());
         compactTool(organize->menuAction(),"Pages","pagesTool",organize)->setIcon(Icons::line(Icons::Symbol::Table));
         // Secondary actions appear only when they apply to the current selection or tool.
@@ -503,7 +581,7 @@ public:
         editObjectToolAction_=selectionTool(editObject_,"editObjectTool");
         deleteObjectToolAction_=selectionTool(deleteObject_,"deleteObjectTool");
         cancelPlacement_=quick->addAction(Icons::line(Icons::Symbol::Cancel),text("Cancel")); cancelPlacement_->setObjectName("cancelPlacement");
-        connect(cancelPlacement_,&QAction::triggered,this,[this] { if (addText_->isChecked()) view_->textCanceled(); else cancelSignature_->trigger(); });
+        connect(cancelPlacement_,&QAction::triggered,this,[this] { if (highlight_->isChecked()) view_->highlightCanceled(); else if (addText_->isChecked()) view_->textCanceled(); else cancelSignature_->trigger(); });
         quick->setContextMenuPolicy(Qt::PreventContextMenu);
 
         auto *split=new QSplitter;
@@ -538,23 +616,26 @@ public:
         layout->addWidget(importNotice_); layout->addWidget(workspace_,1);
 
         status_->setMinimumWidth(0); status_->setSizePolicy(QSizePolicy::Ignored,QSizePolicy::Preferred); statusBar()->addWidget(status_,1);
-        auto *navigation=new QWidget; auto *navLayout=new QHBoxLayout(navigation); navLayout->setContentsMargins(0,0,0,0); navLayout->setSpacing(6);
+        auto *navigation=new QWidget; navigation->setObjectName("pageNavigation"); auto *navLayout=new QHBoxLayout(navigation); navLayout->setContentsMargins(0,0,0,0); navLayout->setSpacing(6);
         for (auto *a:{previous_,next_}) { auto *b=new QToolButton; b->setIconSize(QSize(20,20)); b->setDefaultAction(a); navLayout->addWidget(b); }
         pageNumber_->setObjectName("pageNumber");
         pageNumber_->setKeyboardTracking(false); pageNumber_->setButtonSymbols(QAbstractSpinBox::NoButtons); pageNumber_->setFixedWidth(56); pageNumber_->setAlignment(Qt::AlignCenter);
-        navLayout->addWidget(pageNumber_); navLayout->addWidget(pageTotal_); navLayout->addSpacing(16);
+        navLayout->addWidget(pageNumber_); navLayout->addWidget(pageTotal_); statusBar()->addPermanentWidget(navigation);
+        auto *zoomTools=new QWidget; zoomTools->setObjectName("zoomTools");
+        auto *zoomLayout=new QHBoxLayout(zoomTools); zoomLayout->setContentsMargins(0,0,0,0); zoomLayout->setSpacing(4);
+        quick->addSeparator(); quick->addWidget(zoomTools);
         zoom_->setObjectName("zoomLevel");
         zoom_->addItems({"50%","75%","100%","125%","150%","200%","300%"}); zoom_->setEditable(true); zoom_->setInsertPolicy(QComboBox::NoInsert); zoom_->setFixedWidth(90);
-        auto navigationButton=[&](QAction *a,const QString &name) { auto *button=new QToolButton; button->setObjectName(name); button->setDefaultAction(a); button->setIconSize(QSize(18,18)); navLayout->addWidget(button); return button; };
+        auto navigationButton=[&](QAction *a,const QString &name) { auto *button=new QToolButton; button->setObjectName(name); button->setDefaultAction(a); button->setIconSize(QSize(18,18)); zoomLayout->addWidget(button); return button; };
         navigationButton(zoomOut,"zoomOutTool");
-        navLayout->addWidget(zoom_);
+        zoomLayout->addWidget(zoom_);
         navigationButton(zoomIn,"zoomInTool");
         auto *fitMenu=new QMenu(this); fitMenu->addAction(fit); fitMenu->addAction(width); fitMenu->addAction(actual);
         auto *fitButton=new QToolButton; fitButton->setObjectName("fitTool"); fitButton->setIcon(fit->icon()); fitButton->setIconSize(QSize(18,18));
-        fitButton->setMenu(fitMenu); fitButton->setPopupMode(QToolButton::MenuButtonPopup);
+        fitButton->setProperty("popupMenu",true); fitButton->setMenu(fitMenu); fitButton->setPopupMode(QToolButton::InstantPopup);
         auto syncFit=[fitButton,fit] { fitButton->setEnabled(fit->isEnabled()); fitButton->setToolTip(fit->toolTip()); };
-        syncFit(); connect(fit,&QAction::changed,fitButton,syncFit); connect(fitButton,&QToolButton::clicked,fit,&QAction::trigger);
-        navLayout->addWidget(fitButton); statusBar()->addPermanentWidget(navigation);
+        syncFit(); connect(fit,&QAction::changed,fitButton,syncFit);
+        zoomLayout->addWidget(fitButton);
         connect(pageNumber_,&QSpinBox::valueChanged,this,[this](int page) { if (!refreshing_) pages_->setCurrentRow(page-1); });
         connect(zoom_,&QComboBox::activated,this,[this] { applyZoom(); });
         connect(zoom_->lineEdit(),&QLineEdit::returnPressed,this,[this] { applyZoom(); });
@@ -588,6 +669,7 @@ public:
         captureTranslations();
         applyLanguage(QSettings().value("ui/language","en").toString(),false);
         applyTheme(QSettings().value("ui/theme","light").toString(),false);
+        updateToolbarLayout();
         refresh();
     }
     void openPath(const QString &path) {
@@ -603,6 +685,7 @@ public:
     }
 
 protected:
+    void resizeEvent(QResizeEvent *event) override { QMainWindow::resizeEvent(event); updateToolbarLayout(); }
     bool event(QEvent *event) override {
         const bool handled=QMainWindow::event(event);
         if (event->type()==QEvent::ScreenChangeInternal) {
@@ -616,6 +699,13 @@ protected:
     }
     void closeEvent(QCloseEvent *e) override { if (qEnvironmentVariableIsSet("MYPDF_SMOKE_TEST") || canClose()) e->accept(); else e->ignore(); }
 private:
+    void updateToolbarLayout() {
+        const bool compact=width()<1100;
+        filename_->setMinimumWidth(compact?40:110); filename_->setMaximumWidth(compact?80:200);
+        filename_->setSizePolicy(QSizePolicy::Expanding,QSizePolicy::Preferred);
+        for (auto *button:findChildren<QToolButton *>()) if (button->property("compactLabel").toBool())
+            button->setToolButtonStyle(compact?Qt::ToolButtonIconOnly:Qt::ToolButtonTextBesideIcon);
+    }
     void captureTranslations() {
         auto bind=[this](QObject *object,const char *property) {
             auto value=object->property(property).toString();
@@ -638,7 +728,7 @@ private:
         for (auto *a:languages_->actions()) a->setChecked(a->data().toString()==I18n::language());
         for (int i=0;i<pages_->count();++i) pages_->item(i)->setText(text("Page %1").arg(i+1));
         setStatus(statusKey_,statusArgs_);
-        title();
+        title(); updateToolbarLayout();
     }
     void applyTheme(const QString &theme,bool persist) {
         const QString selected = theme=="dark" ? "dark" : "light";
@@ -663,8 +753,8 @@ private:
         const bool placingSignature=doc_.isOpen() && !addText_->isChecked() && view_->hasSignature();
         cancelText_->setVisible(placingText); cancelText_->setEnabled(placingText);
         cancelSignature_->setVisible(placingSignature); cancelSignature_->setEnabled(placingSignature);
-        selectObjects_->setChecked(!addText_->isChecked() && !view_->hasSignature());
-        cancelPlacement_->setVisible(doc_.isOpen() && (addText_->isChecked() || view_->hasSignature()));
+        selectObjects_->setChecked(!highlight_->isChecked() && !addText_->isChecked() && !view_->hasSignature());
+        cancelPlacement_->setVisible(doc_.isOpen() && (highlight_->isChecked() || addText_->isChecked() || view_->hasSignature()));
     }
     void removeSelectedObject() {
         const auto id=view_->selectedObject(); if (id.isEmpty()) return;
@@ -722,6 +812,7 @@ private:
     }
     void openDialog() { auto p=openFileDialog(text("Open Document"),text("Supported documents (*.pdf *.docx);;PDF (*.pdf);;Word documents (*.docx)")); if (!p.isEmpty()) openPath(p); }
     void refresh(int page=0) {
+        highlight_->setChecked(false); view_->setHighlight(false);
         addText_->setChecked(false); view_->setTextPlacement(false);
         thumbnails_.stop(); thumbnailRow_=0;
         refreshing_=true; pages_->clear();
@@ -765,7 +856,7 @@ private:
         PageObject existing;
         if (!id.isEmpty()) for (const auto &object:doc_.objects(pages_->currentRow())) if (object.id==id) existing=object;
         const bool editing=!id.isEmpty();
-        if (editing && (existing.id.isEmpty() || !existing.image.isNull())) return;
+        if (editing && (existing.id.isEmpty() || existing.isHighlight() || !existing.image.isNull())) return;
         QFont initialFont=existing.font;
         if (editing && existing.textSize.height()>0) initialFont.setPointSizeF(existing.font.pointSizeF()*existing.rect.height()*doc_.size(existing.page).height()/existing.textSize.height());
         QDialog dialog(this); dialog.setWindowTitle(text(editing?"Edit Text…":"Add Text…"));
@@ -798,9 +889,42 @@ private:
     }
     void editObject(const QString &id) {
         for (const auto &object:doc_.objects(pages_->currentRow())) if (object.id==id) {
-            if (object.image.isNull()) insertText(object.rect.topLeft(),id);
+            if (object.isHighlight()) editHighlight(object.id);
+            else if (object.image.isNull()) insertText(object.rect.topLeft(),id);
             else editSignature(object);
             return;
+        }
+    }
+    void editHighlight(const QString &id={}) {
+        PageObject existing;
+        if (!id.isEmpty()) for (const auto &object:doc_.objects(pages_->currentRow())) if (object.id==id) existing=object;
+        if (!id.isEmpty() && !existing.isHighlight()) return;
+        QColor color=id.isEmpty()?highlightColor_:existing.color;
+        const int initialAlpha=color.alpha(), initialOpacity=qRound(color.alphaF()*100);
+        QDialog dialog(this); dialog.setObjectName("highlightSettings"); dialog.setWindowTitle(text("Highlighter Settings…"));
+        auto *layout=new QVBoxLayout(&dialog); auto *form=new QFormLayout; layout->addLayout(form);
+        auto *colors=new QComboBox; colors->setObjectName("highlightColor");
+        const QList<QPair<QString,QColor>> presets{{"Yellow",QColor("#ffeb3b")},{"Green",QColor("#76ff03")},{"Pink",QColor("#ff80ab")},{"Blue",QColor("#80d8ff")},{"Orange",QColor("#ffab40")}};
+        for (const auto &preset:presets) { QPixmap swatch(20,20); swatch.fill(preset.second); colors->addItem(QIcon(swatch),text(preset.first),preset.second); }
+        colors->addItem(text("Custom Color…"));
+        int current=colors->count()-1;
+        for (int i=0;i<presets.size();++i) if (presets[i].second.rgb()==color.rgb()) current=i;
+        colors->setCurrentIndex(current); form->addRow(text("Color"),colors);
+        connect(colors,&QComboBox::activated,&dialog,[&](int index) {
+            const QColor selected=index<presets.size()?presets[index].second:QColorDialog::getColor(color,&dialog,text("Color"));
+            if (selected.isValid()) color=selected;
+        });
+        auto *width=new QDoubleSpinBox; width->setObjectName("highlightWidth"); width->setRange(1,72); width->setDecimals(1); width->setValue(id.isEmpty()?highlightWidth_:existing.strokeWidth); form->addRow(text("Thickness (pt)"),width);
+        auto *opacity=new QSpinBox; opacity->setObjectName("highlightOpacity"); opacity->setRange(5,80); opacity->setSuffix("%"); opacity->setValue(qRound(color.alphaF()*100)); form->addRow(text("Opacity"),opacity);
+        auto *buttons=new QDialogButtonBox(QDialogButtonBox::Ok|QDialogButtonBox::Cancel); layout->addWidget(buttons);
+        connect(buttons,&QDialogButtonBox::accepted,&dialog,&QDialog::accept); connect(buttons,&QDialogButtonBox::rejected,&dialog,&QDialog::reject);
+        if (dialog.exec()!=QDialog::Accepted) return;
+        color.setAlpha(opacity->value()==initialOpacity?initialAlpha:qRound(opacity->value()*2.55));
+        if (!id.isEmpty()) { doc_.updateHighlight(id,color,width->value()); refresh(existing.page); view_->selectObject(id); view_->setFocus(); }
+        else {
+            highlightColor_=color; highlightWidth_=width->value();
+            QSettings settings; settings.setValue("highlight/color",color.name(QColor::HexArgb)); settings.setValue("highlight/width",highlightWidth_);
+            if (highlight_->isChecked()) view_->setHighlight(true,highlightColor_,highlightWidth_);
         }
     }
     void editSignature(const PageObject &object) {
@@ -855,6 +979,7 @@ private:
         doc_.extract(selected,path); setStatus("Selected pages extracted: %1",{path});
     }
     void armSignature(QImage image) {
+        highlight_->setChecked(false); view_->setHighlight(false);
         addText_->setChecked(false); view_->setTextPlacement(false);
         view_->setSignature(std::move(image)); setStatus("Drag a rectangle on the page to place the signature. Esc: cancel");
     }
@@ -877,7 +1002,7 @@ private:
 };
 #ifndef MYPDF_NO_MAIN
 int main(int argc,char **argv) {
-    QApplication app(argc,argv); app.setApplicationName("MyPdf"); app.setOrganizationName("MyPdf");
+    QApplication app(argc,argv); app.setApplicationVersion(QStringLiteral(MYPDF_VERSION)); app.setApplicationName("MyPdf"); app.setOrganizationName("MyPdf");
     QSettings settings;
     QSettings previous(QStringLiteral("MyPDF"),QStringLiteral("MyPDF"));
     for (const auto &key:QStringList{"ui/language","ui/theme"})

@@ -9,9 +9,10 @@ A C++17 / Qt 6 PDF editor for Ubuntu, Windows and macOS. Read PDFs, organize pag
 - Open, close, save and save a copy of PDFs.
 - Reorder pages, extract selected pages into a new PDF, and insert blank pages, PDFs or DOCX files.
 - Add text, draw signatures or import signature images.
+- Highlight with adjustable color, thickness and opacity; hold Shift for horizontal strokes.
 - Select, drag, resize, double-click to edit, and delete added text/signatures.
 - Import DOCX as PDF for editing and saving; no Word or LibreOffice required.
-- Page thumbnails, zoom, fit page and fit width.
+- Page thumbnails, with zoom, fit page and fit width on the top toolbar.
 - English, German and Korean interfaces; light and dark themes.
 
 ## Requirements
@@ -167,20 +168,20 @@ sudo apt install python3 binutils
 ./scripts/package-linux.sh
 ```
 
-Output: `dist/MyPdf-0.1.0-x86_64.AppImage`, `.sha256` and `.build.json`. Version and architecture follow the build. Qt, Poppler, qpdf, the C++ runtime and required plugins are bundled; recipients do not install these packages separately. On first use, [linuxdeploy](https://github.com/linuxdeploy/linuxdeploy), its Qt plugin and the AppImage runtime are downloaded from official GitHub releases and checked against published SHA-256 digests. Tools are cached under `build/appimage-tools` and reused without downloading again. Initial packaging needs an internet connection.
+Output: `dist/MyPdf-0.2.0-x86_64.AppImage`, `.sha256` and `.build.json`. Version and architecture follow the build. Qt, Poppler, qpdf, the C++ runtime and required plugins are bundled; recipients do not install these packages separately. On first use, [linuxdeploy](https://github.com/linuxdeploy/linuxdeploy), its Qt plugin and the AppImage runtime are downloaded from official GitHub releases and checked against published SHA-256 digests. Tools are cached under `build/appimage-tools` and reused without downloading again. Initial packaging needs an internet connection.
 
 Distribute the **single AppImage file**. Providing `.sha256` enables integrity checks; `.build.json` records the build environment, system libraries and tool versions. Recipients run these commands from the download folder:
 
 ```bash
-sha256sum -c MyPdf-0.1.0-x86_64.AppImage.sha256
-chmod +x MyPdf-0.1.0-x86_64.AppImage
-./MyPdf-0.1.0-x86_64.AppImage
+sha256sum -c MyPdf-0.2.0-x86_64.AppImage.sha256
+chmod +x MyPdf-0.2.0-x86_64.AppImage
+./MyPdf-0.2.0-x86_64.AppImage
 ```
 
 Run the checksum command only if the `.sha256` file was also provided. Without FUSE, extract and run without installing anything:
 
 ```bash
-APPIMAGE_EXTRACT_AND_RUN=1 ./MyPdf-0.1.0-x86_64.AppImage
+APPIMAGE_EXTRACT_AND_RUN=1 ./MyPdf-0.2.0-x86_64.AppImage
 ```
 
 Keep the AppImage in any folder. To update, quit the app and replace the AppImage with the new version. Packaging does not overwrite existing output; select a different path when needed:
@@ -196,7 +197,7 @@ Native `x86_64` and `aarch64` are supported; local validation currently covers x
 After the Release build and AppImage packaging, copy the app to `~/.local/bin/MyPdf` from the project directory. Quit any running MyPdf first. No administrator privileges are needed, and the command sets executable permissions. Replace the source filename with the actual version and architecture produced.
 
 ```bash
-install -Dm755 dist/MyPdf-0.1.0-x86_64.AppImage "$HOME/.local/bin/MyPdf"
+install -Dm755 dist/MyPdf-0.2.0-x86_64.AppImage "$HOME/.local/bin/MyPdf"
 "$HOME/.local/bin/MyPdf"
 ```
 
@@ -215,15 +216,18 @@ On Windows, `cmake --install` installs the app without copying DLLs. Install MSY
 
 ## Usage and limitations
 
+The top Sign, Highlight, Pages and Fit buttons all open their menu when clicking either the button or its arrow.
+
 | Task | How |
 | --- | --- |
 | Open and save | File → Open / Save / Save As. Opening DOCX imports it as PDF; the first save asks for a PDF destination. |
 | Add text/signatures | Select Text / Sign on the toolbar and place the object on the page. |
+| Highlight | Enable Highlighter from the top Highlight menu, then drag over the page. Use the same menu for color, thickness and opacity settings; hold Shift for horizontal strokes. Esc exits the pen. Use Select to move/delete a highlight, or double-click it to edit its style. |
 | Edit added objects | Click to select, drag to move, resize with corner handles and double-click to edit. Arrow keys move, Shift increases the step, Delete/Backspace deletes. Esc cancels placement/movement or deselects. |
 | Organize pages | Use Pages for moving, inserting and extracting. Select multiple pages in the thumbnail sidebar. |
 | Language/theme | Change in Settings. Menu names here use the English interface. |
 
-Added text/signatures remain selectable and editable after saving and reopening in MyPdf, and display in other PDF viewers. Text/signatures already flattened into existing PDFs cannot be edited individually.
+Added text, signatures and highlights remain selectable and editable after saving and reopening in MyPdf, and display in other PDF viewers. Text/signatures already flattened into existing PDFs cannot be edited individually.
 
 DOCX import supports basic paragraphs, styles, lists, tables and images. Fonts and pagination can differ from Word; complex drawings, equations, headers and footnotes have limited support. Check the layout before saving. The Word original is preserved. Legacy `.doc` and saving back to DOCX are unsupported.
 

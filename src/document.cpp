@@ -14,6 +14,7 @@
 #include <QUuid>
 #include <QFileInfo>
 #include <QPainter>
+#include <QPainterPath>
 #include <QTextDocument>
 #include <QAbstractTextDocumentLayout>
 #include <QPdfWriter>
@@ -137,6 +138,16 @@ QList<PageObject> Document::objects(int page) const {
 namespace {
 void paintObject(QPainter &painter, const PageObject &object, const QSizeF &pageSize) {
     QRectF rect(object.rect.x()*pageSize.width(),object.rect.y()*pageSize.height(),object.rect.width()*pageSize.width(),object.rect.height()*pageSize.height());
+    if (object.isHighlight()) {
+        QPainterPath path;
+        for (int i=0;i<object.highlight.size();++i) {
+            const QPointF point=rect.topLeft()+QPointF(object.highlight[i].x()*rect.width(),object.highlight[i].y()*rect.height());
+            if (i==0) path.moveTo(point); else path.lineTo(point);
+        }
+        painter.setRenderHint(QPainter::Antialiasing);
+        painter.setPen(QPen(object.color,object.strokeWidth,Qt::SolidLine,Qt::RoundCap,Qt::RoundJoin));
+        painter.drawPath(path); return;
+    }
     if (!object.image.isNull()) { painter.drawImage(rect,object.image); return; }
     QTextDocument content; content.documentLayout()->setPaintDevice(painter.device());
     content.setDefaultFont(object.font); content.setDocumentMargin(0); content.setPlainText(object.text);
@@ -221,6 +232,42 @@ void Document::addText(int page, const QString &text, const QFont &font, const Q
     const auto object=makeText(page,text,font,color,position);
     auto objects=objects_; objects.append(object); commitObjects(base_,objects);
 }
+void Document::addHighlight(int page, const QPolygonF &points, const QColor &color, double width) {
+    check(page);
+    if (points.size()<2 || points.size()>20000 || !color.isValid() || color.alpha()==0 ||
+        !std::isfinite(width) || width<1 || width>72) fail(I18n::text("Invalid highlight stroke."));
+    const QSizeF pageSize=size(page);
+    for (const auto &point:points)
+        if (!std::isfinite(point.x()) || !std::isfinite(point.y()) || !QRectF(0,0,1,1).contains(point))
+            fail(I18n::text("Invalid highlight stroke."));
+    if (points.boundingRect().width()==0 && points.boundingRect().height()==0) fail(I18n::text("Invalid highlight stroke."));
+    const QPointF padding(width/(2*pageSize.width()),width/(2*pageSize.height()));
+    const QRectF bounds=points.boundingRect().adjusted(-padding.x(),-padding.y(),padding.x(),padding.y()).intersected(QRectF(0,0,1,1));
+    if (!bounds.isValid()) fail(I18n::text("Invalid highlight stroke."));
+    PageObject object; object.id=QUuid::createUuid().toString(QUuid::WithoutBraces);
+    object.page=page; object.rect=bounds; object.color=color; object.strokeWidth=width;
+    for (const auto &point:points) object.highlight.append(QPointF((point.x()-bounds.x())/bounds.width(),(point.y()-bounds.y())/bounds.height()));
+    auto objects=objects_; objects.append(object); commitObjects(base_,objects);
+}
+void Document::updateHighlight(const QString &id, const QColor &color, double width) {
+    if (!color.isValid() || color.alpha()==0 || !std::isfinite(width) || width<1 || width>72)
+        fail(I18n::text("Invalid highlight stroke."));
+    auto objects=objects_;
+    for (auto &object:objects) if (object.id==id && object.isHighlight()) {
+        if (object.color==color && object.strokeWidth==width) return;
+        // Recalculate the bounds so thicker strokes are not clipped in the preview.
+        QPolygonF points;
+        for (const auto &point:object.highlight)
+            points.append(object.rect.topLeft()+QPointF(point.x()*object.rect.width(),point.y()*object.rect.height()));
+        const QSizeF pageSize=size(object.page);
+        const QPointF padding(width/(2*pageSize.width()),width/(2*pageSize.height()));
+        object.rect=points.boundingRect().adjusted(-padding.x(),-padding.y(),padding.x(),padding.y()).intersected(QRectF(0,0,1,1));
+        object.highlight.clear();
+        for (const auto &point:points) object.highlight.append(QPointF((point.x()-object.rect.x())/object.rect.width(),(point.y()-object.rect.y())/object.rect.height()));
+        object.color=color; object.strokeWidth=width; commitObjects(base_,objects); return;
+    }
+    fail(I18n::text("Select an added highlight first."));
+}
 void Document::sign(int page, const QImage &image, const QRectF &rect) {
     check(page);
     if (image.isNull() || !rect.isValid() || !QRectF(0,0,1,1).contains(rect)) fail(I18n::text("The signature area is outside the page."));
@@ -232,11 +279,11 @@ void Document::sign(int page, const QImage &image, const QRectF &rect) {
 }
 void Document::updateText(const QString &id, const QString &text, const QFont &font, const QColor &color) {
     auto objects=objects_;
-    for (auto &object:objects) if (object.id==id && object.image.isNull()) {
+    for (auto &object:objects) if (object.id==id && object.image.isNull() && !object.isHighlight()) {
         auto edited=makeText(object.page,text,font,color,object.rect.topLeft(),object.rect.width()*size(object.page).width());
         edited.id=object.id; object=edited; commitObjects(base_,objects); return;
     }
-    fail(I18n::text("Select an added text or signature first."));
+    fail(I18n::text("Select an added object first."));
 }
 void Document::updateSignature(const QString &id, const QImage &image) {
     if (image.isNull()) fail(I18n::text("Unable to read the signature image."));
@@ -244,7 +291,7 @@ void Document::updateSignature(const QString &id, const QImage &image) {
     for (auto &object:objects) if (object.id==id && !object.image.isNull()) {
         object.image=image; commitObjects(base_,objects); return;
     }
-    fail(I18n::text("Select an added text or signature first."));
+    fail(I18n::text("Select an added object first."));
 }
 void Document::resizeObject(const QString &id, const QRectF &rect) {
     if (!std::isfinite(rect.x()) || !std::isfinite(rect.y()) || !std::isfinite(rect.width()) || !std::isfinite(rect.height()) ||
@@ -252,10 +299,11 @@ void Document::resizeObject(const QString &id, const QRectF &rect) {
     auto objects=objects_;
     for (auto &object:objects) if (object.id==id) {
         if (object.rect==rect) return;
-        if (object.image.isNull() && !object.textSize.isValid()) object.textSize=QSizeF(object.rect.width()*size(object.page).width(),object.rect.height()*size(object.page).height());
+        if (object.isHighlight()) object.strokeWidth*=rect.width()/object.rect.width();
+        if (object.image.isNull() && !object.isHighlight() && !object.textSize.isValid()) object.textSize=QSizeF(object.rect.width()*size(object.page).width(),object.rect.height()*size(object.page).height());
         object.rect=rect; commitObjects(base_,objects); return;
     }
-    fail(I18n::text("Select an added text or signature first."));
+    fail(I18n::text("Select an added object first."));
 }
 void Document::moveObject(const QString &id, const QPointF &position) {
     if (!std::isfinite(position.x()) || !std::isfinite(position.y())) fail(I18n::text("Invalid text or placement."));
@@ -265,12 +313,12 @@ void Document::moveObject(const QString &id, const QPointF &position) {
         if (object.rect.topLeft()==clamped) return;
         object.rect.moveTopLeft(clamped); commitObjects(base_,objects); return;
     }
-    fail(I18n::text("Select an added text or signature first."));
+    fail(I18n::text("Select an added object first."));
 }
 void Document::removeObject(const QString &id) {
     auto objects=objects_;
     for (int i=0;i<objects.size();++i) if (objects[i].id==id) { objects.removeAt(i); commitObjects(base_,objects); return; }
-    fail(I18n::text("Select an added text or signature first."));
+    fail(I18n::text("Select an added object first."));
 }
 void Document::cancelSignature() {
     if (!canCancelSignature()) return;
@@ -338,6 +386,11 @@ QString Document::withEditState() const {
     for (const auto &object:objects_) {
         QJsonObject item{{"id",object.id},{"page",object.page},{"x",object.rect.x()},{"y",object.rect.y()},
             {"w",object.rect.width()},{"h",object.rect.height()},{"text",object.text},{"layoutW",object.textSize.width()},{"layoutH",object.textSize.height()},{"font",object.font.toString()},{"color",object.color.name(QColor::HexArgb)}};
+        if (object.isHighlight()) {
+            QJsonArray points;
+            for (const auto &point:object.highlight) points.append(QJsonArray{point.x(),point.y()});
+            item.insert("highlight",points); item.insert("strokeWidth",object.strokeWidth);
+        }
         if (!object.image.isNull()) {
             QByteArray png; QBuffer buffer(&png); buffer.open(QIODevice::WriteOnly);
             if (!object.image.save(&buffer,"PNG")) fail(I18n::text("Unable to write editing data."));
@@ -355,7 +408,7 @@ QString Document::withEditState() const {
         args << "--remove-attachment=org.mypdf.edit-state.v1.json"; break;
     }
     args << "--add-attachment" << attachment << "--key="+editStateName << "--filename="+editStateName
-         << "--description=MyPdf editable text and signatures" << "--mimetype=application/json" << "--replace" << "--" << out;
+         << "--description=MyPdf editable objects" << "--mimetype=application/json" << "--replace" << "--" << out;
     run(args);
     return out;
 }
@@ -387,11 +440,25 @@ void Document::restoreObjects() {
                     if (dimensions.width()<=0 || dimensions.height()<=0 || qint64(dimensions.width())*dimensions.height()>32000000) { valid=false; break; }
                     object.image=reader.read();
                 }
+                if (item.contains("highlight")) {
+                    const auto points=item.value("highlight").toArray();
+                    object.strokeWidth=item.value("strokeWidth").toDouble(-1);
+                    if (points.size()<2 || points.size()>20000 || !object.color.isValid() || object.color.alpha()==0 ||
+                        !std::isfinite(object.strokeWidth) || object.strokeWidth<=0 || object.strokeWidth>10000 || !object.image.isNull()) { valid=false; break; }
+                    for (const auto &value:points) {
+                        const auto pair=value.toArray();
+                        if (pair.size()!=2 || !pair[0].isDouble() || !pair[1].isDouble()) { valid=false; break; }
+                        const QPointF point(pair[0].toDouble(),pair[1].toDouble());
+                        if (!std::isfinite(point.x()) || !std::isfinite(point.y()) || !QRectF(0,0,1,1).contains(point)) { valid=false; break; }
+                        object.highlight.append(point);
+                    }
+                    if (!valid) break;
+                }
                 if (object.id.isEmpty() || ids.contains(object.id) || object.page<0 || object.page>=count() ||
                     !object.rect.isValid() || !QRectF(0,0,1,1).contains(object.rect) ||
-                    (object.image.isNull() && (object.text.trimmed().isEmpty() || object.text.size()>10000 || !object.color.isValid() || object.font.pointSizeF()<.1 || object.font.pointSizeF()>10000))) { valid=false; break; }
-                if (object.image.isNull() && !object.textSize.isValid()) object.textSize=QSizeF(object.rect.width()*size(object.page).width(),object.rect.height()*size(object.page).height());
-                if (object.image.isNull() && (object.textSize.width()>100000 || object.textSize.height()>100000)) { valid=false; break; }
+                    (object.image.isNull() && !object.isHighlight() && (object.text.trimmed().isEmpty() || object.text.size()>10000 || !object.color.isValid() || object.font.pointSizeF()<.1 || object.font.pointSizeF()>10000))) { valid=false; break; }
+                if (object.image.isNull() && !object.isHighlight() && !object.textSize.isValid()) object.textSize=QSizeF(object.rect.width()*size(object.page).width(),object.rect.height()*size(object.page).height());
+                if (object.image.isNull() && !object.isHighlight() && (object.textSize.width()>100000 || object.textSize.height()>100000)) { valid=false; break; }
                 ids.insert(object.id); objects.append(object);
             }
             if (valid) { base_=base; objects_=objects; }

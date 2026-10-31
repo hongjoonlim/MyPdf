@@ -9,9 +9,10 @@ Ubuntu·Windows·macOS용 C++17 / Qt 6 PDF 편집기입니다. PDF를 열고 페
 - PDF 열기·닫기·저장·다른 이름으로 저장
 - 페이지 이동, 선택한 페이지를 새 PDF로 추출, 빈 페이지·PDF·DOCX 삽입
 - 텍스트 추가, 서명 그리기, 서명 이미지 가져오기
+- 형광펜으로 강조 표시: 색상·굵기·불투명도 조절, Shift로 수평선 그리기
 - 추가한 텍스트·서명의 선택·드래그 이동·크기 조절·더블클릭 수정·삭제
 - DOCX를 PDF로 가져와 편집·저장: Word 또는 LibreOffice 설치 불필요
-- 페이지 미리보기, 확대·축소, 페이지·너비 맞춤
+- 페이지 미리보기, 상단 도구 모음의 확대·축소 및 페이지·너비 맞춤
 - 영어·독일어·한국어 전환과 밝은·어두운 테마
 
 ## 공통 준비 사항
@@ -167,20 +168,20 @@ sudo apt install python3 binutils
 ./scripts/package-linux.sh
 ```
 
-결과는 `dist/MyPdf-0.1.0-x86_64.AppImage`와 `.sha256`, `.build.json`입니다. 버전과 아키텍처는 빌드에 따라 달라집니다. Qt·Poppler·qpdf·C++ 런타임과 필요한 플러그인을 포함하므로 받는 사람이 이 패키지를 별도로 설치할 필요는 없습니다. [linuxdeploy](https://github.com/linuxdeploy/linuxdeploy)와 Qt 플러그인, AppImage 런타임은 최초 실행 시 공식 GitHub 배포에서 내려받고 게시된 SHA-256으로 검증합니다. 도구는 `build/appimage-tools`에 캐시하며, 같은 캐시가 있으면 다시 다운로드하지 않습니다. 최초 패키징에는 인터넷 연결이 필요합니다.
+결과는 `dist/MyPdf-0.2.0-x86_64.AppImage`와 `.sha256`, `.build.json`입니다. 버전과 아키텍처는 빌드에 따라 달라집니다. Qt·Poppler·qpdf·C++ 런타임과 필요한 플러그인을 포함하므로 받는 사람이 이 패키지를 별도로 설치할 필요는 없습니다. [linuxdeploy](https://github.com/linuxdeploy/linuxdeploy)와 Qt 플러그인, AppImage 런타임은 최초 실행 시 공식 GitHub 배포에서 내려받고 게시된 SHA-256으로 검증합니다. 도구는 `build/appimage-tools`에 캐시하며, 같은 캐시가 있으면 다시 다운로드하지 않습니다. 최초 패키징에는 인터넷 연결이 필요합니다.
 
 **AppImage 파일 하나**를 전달하세요. `.sha256`을 함께 제공하면 무결성을 확인할 수 있으며, `.build.json`은 빌드 환경·시스템 라이브러리·도구 버전 기록입니다. 사용자는 받은 파일이 있는 폴더에서 실행 권한을 주고 실행합니다.
 
 ```bash
-sha256sum -c MyPdf-0.1.0-x86_64.AppImage.sha256
-chmod +x MyPdf-0.1.0-x86_64.AppImage
-./MyPdf-0.1.0-x86_64.AppImage
+sha256sum -c MyPdf-0.2.0-x86_64.AppImage.sha256
+chmod +x MyPdf-0.2.0-x86_64.AppImage
+./MyPdf-0.2.0-x86_64.AppImage
 ```
 
 체크섬 검사는 `.sha256`도 받은 경우에 실행합니다. FUSE를 사용할 수 없는 환경에서는 설치 없이 추출 실행할 수 있습니다.
 
 ```bash
-APPIMAGE_EXTRACT_AND_RUN=1 ./MyPdf-0.1.0-x86_64.AppImage
+APPIMAGE_EXTRACT_AND_RUN=1 ./MyPdf-0.2.0-x86_64.AppImage
 ```
 
 AppImage는 원하는 폴더에 보관하고 실행할 수 있습니다. 업데이트는 실행 중인 앱을 종료하고 새 AppImage로 교체합니다. 패키징은 기존 출력을 덮어쓰지 않으므로 새 경로를 지정할 수도 있습니다.
@@ -196,7 +197,7 @@ AppImage는 원하는 폴더에 보관하고 실행할 수 있습니다. 업데�
 Release 빌드와 AppImage 패키징을 마친 뒤, 프로젝트 폴더에서 아래 명령으로 `~/.local/bin/MyPdf`에 복사할 수 있습니다. 실행 중인 MyPdf를 먼저 종료하세요. 관리자 권한은 필요하지 않으며 실행 권한도 함께 설정합니다. 원본 파일명은 실제 생성된 버전·아키텍처에 맞게 바꾸세요.
 
 ```bash
-install -Dm755 dist/MyPdf-0.1.0-x86_64.AppImage "$HOME/.local/bin/MyPdf"
+install -Dm755 dist/MyPdf-0.2.0-x86_64.AppImage "$HOME/.local/bin/MyPdf"
 "$HOME/.local/bin/MyPdf"
 ```
 
@@ -215,15 +216,18 @@ Windows의 `cmake --install`은 앱을 설치하며 DLL은 복사하지 않습�
 
 ## 기본 사용법과 제한
 
+상단의 서명·형광펜·페이지·맞춤 버튼은 버튼 또는 화살표를 클릭하면 메뉴가 열리는 동일한 방식으로 동작합니다.
+
 | 작업 | 사용 방법 |
 | --- | --- |
 | 문서 열기·저장 | File → Open / Save / Save As. DOCX를 열면 PDF로 가져오며 첫 저장 시 PDF 경로를 선택합니다. |
 | 텍스트·서명 추가 | 도구 모음의 Text / Sign을 선택한 뒤 페이지에 배치합니다. |
+| 형광펜 | 상단 형광펜 메뉴에서 형광펜을 켜고 페이지 위를 드래그합니다. 같은 메뉴의 형광펜 설정에서 색상·굵기·불투명도를 바꾸며, Shift로 수평선을 그립니다. Esc로 종료하고 선택 도구로 표시를 선택해 이동·삭제하거나 더블클릭으로 설정을 수정합니다. |
 | 추가한 개체 편집 | 클릭으로 선택, 드래그로 이동, 모서리로 크기 조절, 더블클릭으로 수정합니다. 방향키 이동, Shift로 큰 단위 이동, Delete/Backspace로 삭제합니다. Esc는 배치·이동 취소 또는 선택 해제입니다. |
 | 페이지 구성 | Pages에서 이동·삽입·추출합니다. 왼쪽 미리보기에서 여러 페이지를 선택할 수 있습니다. |
 | 언어·테마 | Settings에서 변경합니다. 영어 메뉴 이름 기준이며 언어 설정에 따라 번역됩니다. |
 
-추가한 텍스트·서명은 저장 후 MyPdf에서 다시 선택·수정할 수 있습니다. 다른 PDF 뷰어에서도 표시됩니다. 기존 PDF에 이미 합쳐진 글자·서명은 개별 편집할 수 없습니다.
+추가한 텍스트·서명·형광펜 표시는 저장 후 MyPdf에서 다시 선택·수정할 수 있습니다. 다른 PDF 뷰어에서도 표시됩니다. 기존 PDF에 이미 합쳐진 글자·서명은 개별 편집할 수 없습니다.
 
 DOCX 가져오기는 기본 문단·스타일·목록·표·이미지를 지원하지만 Word와 글꼴·페이지 배치가 다를 수 있습니다. 복잡한 도형·수식·머리글·각주 등의 재현은 제한되며 저장 전에 배치를 확인하세요. 원본 Word 파일은 변경하지 않으며 `.doc`와 DOCX로 다시 저장하는 기능은 지원하지 않습니다.
 

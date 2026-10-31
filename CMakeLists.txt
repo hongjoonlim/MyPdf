@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.22)
-project(MyPdf VERSION 0.1.0 LANGUAGES CXX)
+project(MyPdf VERSION 0.2.0 LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
@@ -44,6 +44,7 @@ endif()
 qt_add_resources(TRANSLATION_RESOURCE translations/translations.qrc)
 add_library(pdfcore src/docx.cpp src/document.cpp src/i18n.cpp src/toolpaths.cpp ${TRANSLATION_RESOURCE})
 target_include_directories(pdfcore PUBLIC src PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/generated")
+target_compile_definitions(pdfcore PUBLIC MYPDF_VERSION="${PROJECT_VERSION}")
 target_link_libraries(pdfcore PUBLIC Qt6::Widgets ZLIB::ZLIB ${MYPDF_POPPLER_TARGET} MyPdf_options)
 
 qt_add_resources(APP_ICON_RESOURCE assets/icons/app.qrc)
@@ -94,8 +95,11 @@ if(BUILD_TESTING)
   add_executable(object_edit_test tests/object_edit_test.cpp src/icons.cpp)
   target_link_libraries(object_edit_test PRIVATE pdfcore)
   add_test(NAME object_editing COMMAND object_edit_test)
+  add_executable(highlight_test tests/highlight_test.cpp src/icons.cpp)
+  target_link_libraries(highlight_test PRIVATE pdfcore)
+  add_test(NAME highlighting_and_zoom COMMAND highlight_test)
   include(cmake/test_environment.cmake)
-  set_tests_properties(object_editing editable_objects native_docx pdf_operations localization signature_cancellation PROPERTIES
+  set_tests_properties(highlighting_and_zoom object_editing editable_objects native_docx pdf_operations localization signature_cancellation PROPERTIES
     ENVIRONMENT "${MYPDF_GUI_TEST_ENVIRONMENT}"
     TIMEOUT 120)
 endif()

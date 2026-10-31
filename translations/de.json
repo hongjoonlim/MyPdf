@@ -35,7 +35,7 @@
     "Cancel Signature Placement": "Platzierung abbrechen",
     "Signature placement canceled.": "Platzierung der Unterschrift abgebrochen.",
     "About MyPdf": "Über MyPdf",
-    "<h3>MyPdf 0.1</h3><p>A PDF editor for organizing pages and adding signatures.</p><p>Signatures are visual marks drawn by hand or imported as images.</p>": "<h3>MyPdf 0.1</h3><p>Ein PDF-Editor zum Organisieren von Seiten und Einfügen von Unterschriften.</p><p>Unterschriften werden als Zeichnung oder Bild eingefügt.</p>",
+    "<h3>MyPdf %1</h3><p>A PDF editor for organizing pages and adding signatures.</p><p>Signatures are visual marks drawn by hand or imported as images.</p>": "<h3>MyPdf %1</h3><p>Ein PDF-Editor zum Organisieren von Seiten und Einfügen von Unterschriften.</p><p>Unterschriften werden als Zeichnung oder Bild eingefügt.</p>",
     "File Tools": "Dateiwerkzeuge",
     "View": "Ansicht",
     "Organize Pages": "Seiten organisieren",
@@ -141,6 +141,23 @@
     "Select": "Auswahl",
     "Main Tools": "Hauptwerkzeuge",
     "Edit Selected…": "Auswahl bearbeiten…",
-    "Cancel": "Abbrechen"
+    "Cancel": "Abbrechen",
+    "Highlighter": "Textmarker",
+    "Highlight": "Markieren",
+    "Highlighter Settings…": "Textmarker-Einstellungen…",
+    "Drag to highlight. Hold Shift for a straight line. Press Esc to finish.": "Zum Markieren ziehen. Mit Shift eine waagerechte Linie zeichnen. Esc beendet das Werkzeug.",
+    "Thickness (pt)": "Strichbreite (pt)",
+    "Opacity": "Deckkraft",
+    "Yellow": "Gelb",
+    "Green": "Grün",
+    "Pink": "Rosa",
+    "Blue": "Blau",
+    "Orange": "Orange",
+    "Custom Color…": "Eigene Farbe…",
+    "Invalid highlight stroke.": "Ungültiger Textmarker-Strich.",
+    "Select an added highlight first.": "Zuerst eine hinzugefügte Markierung auswählen.",
+    "Select Objects": "Objekte auswählen",
+    "Click an added object to select it. Drag to move; drag a corner to resize.": "Hinzugefügtes Objekt anklicken. Zum Verschieben ziehen; Größe an den Ecken ändern.",
+    "Select an added object first.": "Zuerst ein hinzugefügtes Objekt auswählen."
   }
 }

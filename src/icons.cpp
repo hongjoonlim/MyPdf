@@ -92,6 +92,9 @@ public:
             p->drawLine(10,13,22,13); path({{18,9},{22,13},{18,17}}); break;
         case S::Text:
             p->drawLine(5,5,19,5); p->drawLine(12,5,12,20); p->drawLine(8,20,16,20); break;
+        case S::Highlight:
+            path({{5,15},{14,3},{20,8},{11,19},{5,15}});
+            path({{5,15},{3,20},{8,21},{11,19}}); p->drawLine(3,23,20,23); break;
         case S::Signature:
             path({{4,16},{5,11},{15,2},{20,7},{10,17},{4,18},{4,16}}); p->drawLine(12,5,17,10);
             { QPainterPath stroke; stroke.moveTo(3,22); stroke.cubicTo(7,18,10,24,14,21); stroke.cubicTo(16,19,18,23,22,20); p->drawPath(stroke); } break;

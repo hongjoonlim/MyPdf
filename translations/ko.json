@@ -35,7 +35,7 @@
     "Cancel Signature Placement": "서명 배치 취소",
     "Signature placement canceled.": "서명 배치를 취소했습니다.",
     "About MyPdf": "MyPdf 정보",
-    "<h3>MyPdf 0.1</h3><p>A PDF editor for organizing pages and adding signatures.</p><p>Signatures are visual marks drawn by hand or imported as images.</p>": "<h3>MyPdf 0.1</h3><p>페이지 구성과 서명을 위한 PDF 편집기</p><p>서명은 손글씨·이미지를 넣는 시각적 서명입니다.</p>",
+    "<h3>MyPdf %1</h3><p>A PDF editor for organizing pages and adding signatures.</p><p>Signatures are visual marks drawn by hand or imported as images.</p>": "<h3>MyPdf %1</h3><p>페이지 구성과 서명을 위한 PDF 편집기</p><p>서명은 손글씨·이미지를 넣는 시각적 서명입니다.</p>",
     "File Tools": "파일 도구",
     "View": "보기",
     "Organize Pages": "페이지 구성",
@@ -141,6 +141,23 @@
     "Select": "선택",
     "Main Tools": "기본 도구",
     "Edit Selected…": "선택한 개체 수정…",
-    "Cancel": "취소"
+    "Cancel": "취소",
+    "Highlighter": "형광펜",
+    "Highlight": "형광펜",
+    "Highlighter Settings…": "형광펜 설정…",
+    "Drag to highlight. Hold Shift for a straight line. Press Esc to finish.": "드래그해서 강조하세요. Shift를 누르면 수평선으로 그립니다. Esc를 누르면 종료합니다.",
+    "Thickness (pt)": "굵기 (pt)",
+    "Opacity": "불투명도",
+    "Yellow": "노랑",
+    "Green": "초록",
+    "Pink": "분홍",
+    "Blue": "파랑",
+    "Orange": "주황",
+    "Custom Color…": "사용자 지정 색상…",
+    "Invalid highlight stroke.": "형광펜 선의 설정이나 위치가 올바르지 않습니다.",
+    "Select an added highlight first.": "추가한 형광펜 표시를 먼저 선택하세요.",
+    "Select Objects": "개체 선택",
+    "Click an added object to select it. Drag to move; drag a corner to resize.": "추가한 개체를 클릭해서 선택하세요. 드래그로 이동하고 모서리로 크기를 조절합니다.",
+    "Select an added object first.": "추가한 개체를 먼저 선택하세요."
   }
 }

@@ -1,5 +1,6 @@
 #pragma once
 #include <QImage>
+#include <QPolygonF>
 #include <QFont>
 #include <QColor>
 #include <QSizeF>
@@ -16,6 +17,9 @@ struct PageObject {
     QSizeF textSize;
     QColor color;
     QImage image;
+    QPolygonF highlight;
+    double strokeWidth=12;
+    bool isHighlight() const { return !highlight.isEmpty(); }
 };
 class Document {
 public:
@@ -35,6 +39,8 @@ public:
     void insertPdf(const QString &path, int before);
     void insertDocument(const QString &path, int before);
     void addText(int page, const QString &text, const QFont &font, const QColor &color, const QPointF &position);
+    void addHighlight(int page, const QPolygonF &points, const QColor &color, double width);
+    void updateHighlight(const QString &id, const QColor &color, double width);
     void sign(int page, const QImage &image, const QRectF &normalizedRect);
     QList<PageObject> objects(int page) const;
     void updateText(const QString &id, const QString &text, const QFont &font, const QColor &color);

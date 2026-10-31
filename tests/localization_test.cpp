@@ -78,6 +78,10 @@ int main(int argc,char **argv) {
             check(window.menuBar()->actions().first()->text()==I18n::text("&File"),"menu translated");
             check(signatureTool->text()==I18n::text("Sign") && signatureTool->menu(),"compact signature label and menu survive translation");
             check(window.findChild<QToolButton *>("fitTool")->menu(),"fit menu survives translation");
+            for (const auto &name:QStringList{"signatureTool","highlightTool","pagesTool","fitTool"}) {
+                const auto *button=window.findChild<QToolButton *>(name);
+                check(button && button->popupMode()==QToolButton::InstantPopup && button->property("popupMenu").toBool(),"all menu tools share popup behavior and arrow styling");
+            }
             check(selectTool->text()==I18n::text("Select"),"selection tool keeps compact label on state updates");
             auto *pagesTool=window.findChild<QToolButton *>("pagesTool");
             check(pagesTool && pagesTool->text()==I18n::text("Pages") && pagesTool->menu(),"pages menu label translates");

@@ -9,9 +9,10 @@ Ein C++17-/Qt-6-PDF-Editor für Ubuntu, Windows und macOS. PDFs lesen, Seiten or
 - PDFs öffnen, schließen, speichern und unter anderem Namen speichern.
 - Seiten verschieben, ausgewählte Seiten als PDF extrahieren und leere Seiten, PDFs oder DOCX einfügen.
 - Text hinzufügen, Unterschriften zeichnen oder als Bild importieren.
+- Textmarker mit einstellbarer Farbe, Breite und Deckkraft; Shift für waagerechte Striche.
 - Hinzugefügte Texte/Unterschriften auswählen, verschieben, skalieren, per Doppelklick bearbeiten und löschen.
 - DOCX als PDF importieren, bearbeiten und speichern; Word oder LibreOffice sind nicht erforderlich.
-- Seitenvorschau, Zoom, Anpassung an Seite und Breite.
+- Seitenvorschau; Zoom sowie Seiten-/Breitenanpassung in der oberen Werkzeugleiste.
 - Englische, deutsche und koreanische Oberfläche; helles und dunkles Design.
 
 ## Voraussetzungen
@@ -167,20 +168,20 @@ sudo apt install python3 binutils
 ./scripts/package-linux.sh
 ```
 
-Ergebnis: `dist/MyPdf-0.1.0-x86_64.AppImage`, `.sha256` und `.build.json`. Version und Architektur richten sich nach dem Build. Qt, Poppler, qpdf, C++-Laufzeit und erforderliche Plugins werden integriert; Empfänger müssen diese Pakete nicht separat installieren. [linuxdeploy](https://github.com/linuxdeploy/linuxdeploy), sein Qt-Plugin und die AppImage-Laufzeit werden beim ersten Aufruf aus offiziellen GitHub-Releases heruntergeladen und anhand veröffentlichter SHA-256-Werte geprüft. Die Werkzeuge werden unter `build/appimage-tools` zwischengespeichert und danach ohne erneuten Download verwendet. Die erste Paketierung benötigt Internetzugang.
+Ergebnis: `dist/MyPdf-0.2.0-x86_64.AppImage`, `.sha256` und `.build.json`. Version und Architektur richten sich nach dem Build. Qt, Poppler, qpdf, C++-Laufzeit und erforderliche Plugins werden integriert; Empfänger müssen diese Pakete nicht separat installieren. [linuxdeploy](https://github.com/linuxdeploy/linuxdeploy), sein Qt-Plugin und die AppImage-Laufzeit werden beim ersten Aufruf aus offiziellen GitHub-Releases heruntergeladen und anhand veröffentlichter SHA-256-Werte geprüft. Die Werkzeuge werden unter `build/appimage-tools` zwischengespeichert und danach ohne erneuten Download verwendet. Die erste Paketierung benötigt Internetzugang.
 
 Die **einzelne AppImage-Datei** weitergeben. Mit `.sha256` lässt sich die Integrität prüfen; `.build.json` dokumentiert Build-Umgebung, Systembibliotheken und Werkzeugversionen. Empfänger führen im Download-Verzeichnis aus:
 
 ```bash
-sha256sum -c MyPdf-0.1.0-x86_64.AppImage.sha256
-chmod +x MyPdf-0.1.0-x86_64.AppImage
-./MyPdf-0.1.0-x86_64.AppImage
+sha256sum -c MyPdf-0.2.0-x86_64.AppImage.sha256
+chmod +x MyPdf-0.2.0-x86_64.AppImage
+./MyPdf-0.2.0-x86_64.AppImage
 ```
 
 Die Prüfsummenprüfung nur ausführen, wenn auch `.sha256` mitgeliefert wurde. Ohne FUSE ist ein Start durch temporäres Entpacken ohne Installation möglich:
 
 ```bash
-APPIMAGE_EXTRACT_AND_RUN=1 ./MyPdf-0.1.0-x86_64.AppImage
+APPIMAGE_EXTRACT_AND_RUN=1 ./MyPdf-0.2.0-x86_64.AppImage
 ```
 
 Das AppImage kann in einem beliebigen Ordner liegen. Zum Aktualisieren die App beenden und durch die neue Version ersetzen. Vorhandene Pakete werden nicht überschrieben; bei Bedarf einen neuen Ausgabepfad wählen:
@@ -196,7 +197,7 @@ Native `x86_64` und `aarch64` werden unterstützt; lokal wurde bisher x86_64 gep
 Nach Release-Build und AppImage-Paketierung im Projektverzeichnis die App nach `~/.local/bin/MyPdf` kopieren. Eine laufende MyPdf-App vorher beenden. Administratorrechte sind nicht erforderlich; Ausführungsrechte werden mitgesetzt. Den Quelldateinamen an die tatsächlich erzeugte Version und Architektur anpassen.
 
 ```bash
-install -Dm755 dist/MyPdf-0.1.0-x86_64.AppImage "$HOME/.local/bin/MyPdf"
+install -Dm755 dist/MyPdf-0.2.0-x86_64.AppImage "$HOME/.local/bin/MyPdf"
 "$HOME/.local/bin/MyPdf"
 ```
 
@@ -215,15 +216,18 @@ Unter Windows installiert `cmake --install` die App ohne DLLs. Auf dem Zielrechn
 
 ## Bedienung und Grenzen
 
+Die oberen Schaltflächen für Unterschrift, Markieren, Seiten und Anpassung öffnen ihr Menü einheitlich beim Klick auf die Schaltfläche oder ihren Pfeil.
+
 | Aufgabe | Bedienung |
 | --- | --- |
 | Öffnen und speichern | File → Open / Save / Save As. DOCX wird als PDF importiert; beim ersten Speichern den PDF-Zielpfad wählen. |
 | Text/Unterschriften hinzufügen | Text / Sign in der Werkzeugleiste wählen und auf der Seite platzieren. |
+| Markieren | Textmarker im oberen Menü Markieren aktivieren und über die Seite ziehen. Im selben Menü Farbe, Strichbreite und Deckkraft einstellen; Shift zeichnet waagerechte Striche. Esc beendet das Werkzeug. Markierungen mit Select auswählen, verschieben/löschen oder per Doppelklick bearbeiten. |
 | Hinzugefügte Objekte bearbeiten | Anklicken zum Auswählen, ziehen zum Verschieben, Eckgriffe zum Skalieren, Doppelklick zum Bearbeiten. Pfeiltasten verschieben, Shift vergrößert den Schritt, Delete/Backspace löscht. Esc bricht Platzierung/Verschieben ab oder hebt die Auswahl auf. |
 | Seiten organisieren | Pages zum Verschieben, Einfügen und Extrahieren verwenden. Mehrfachauswahl in der Seitenvorschau. |
 | Sprache/Design | In Settings ändern. Die Menünamen hier entsprechen der englischen Oberfläche. |
 
-Hinzugefügte Texte/Unterschriften bleiben nach Speichern und erneutem Öffnen in MyPdf bearbeitbar und werden in anderen PDF-Betrachtern angezeigt. Bereits in bestehende PDFs eingebettete Texte/Unterschriften sind nicht einzeln bearbeitbar.
+Hinzugefügte Texte, Unterschriften und Markierungen bleiben nach Speichern und erneutem Öffnen in MyPdf bearbeitbar und werden in anderen PDF-Betrachtern angezeigt. Bereits in bestehende PDFs eingebettete Texte/Unterschriften sind nicht einzeln bearbeitbar.
 
 DOCX-Import unterstützt grundlegende Absätze, Stile, Listen, Tabellen und Bilder. Schriften und Seitenumbrüche können von Word abweichen; komplexe Zeichnungen, Formeln, Kopfzeilen und Fußnoten sind eingeschränkt. Layout vor dem Speichern prüfen. Die Word-Originaldatei bleibt erhalten. Altes `.doc` und Rückspeichern als DOCX werden nicht unterstützt.
 
