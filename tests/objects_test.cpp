@@ -5,6 +5,7 @@
 #include <QProcess>
 #include <poppler-qt6.h>
 #include <iostream>
+#include <cstdlib>
 namespace {
 void check(bool ok,const char *message) { if (!ok) throw std::runtime_error(message); }
 void mouse(PageView *view,QEvent::Type type,QPointF point,Qt::MouseButton button,Qt::MouseButtons buttons) {
@@ -16,6 +17,19 @@ int main(int argc,char **argv) {
     QApplication app(argc,argv); QTemporaryDir dir;
     app.setOrganizationName("MyPdf"); app.setApplicationName("MyPdf");
     QSettings::setDefaultFormat(QSettings::IniFormat); QSettings::setPath(QSettings::IniFormat,QSettings::UserScope,dir.path());
+    // No message boxes are expected in this test. Report GUI failures instead of
+    // waiting for the CTest timeout inside a modal event loop.
+    QTimer messageGuard;
+    QObject::connect(&messageGuard,&QTimer::timeout,[] {
+        if (auto *message=qobject_cast<QMessageBox *>(QApplication::activeModalWidget())) {
+            std::cerr << "FAIL: unexpected message box: " << message->windowTitle().toStdString()
+                      << " | " << message->text().toStdString()
+                      << " | " << message->informativeText().toStdString()
+                      << " | " << message->detailedText().toStdString() << std::endl;
+            std::_Exit(EXIT_FAILURE);
+        }
+    });
+    messageGuard.start(50);
     try {
         const QString source=dir.filePath("original.pdf");
         { QPdfWriter writer(source); writer.setResolution(72); QPainter p(&writer); p.drawText(50,60,"Original searchable text"); writer.newPage(); }
@@ -32,8 +46,13 @@ int main(int argc,char **argv) {
         check(image.pixelColor(image.width()*.2,image.height()*.45).value()>240,"signature leaves no old mark");
         const QString saved=dir.filePath("editable.pdf"); doc.save(saved);
         const QString statePath=dir.filePath("legacy-state.json"), legacyPath=dir.filePath("legacy.pdf");
-        auto modern=Poppler::Document::load(saved); QByteArray state;
-        for (auto *file:modern->embeddedFiles()) if (file->name()=="org.MyPdf.edit-state.v1.json") state=file->data();
+        QByteArray state;
+        // Direct Poppler readers retain Windows file handles. Destroy each reader
+        // after verification, before any later atomic replacement of the PDF.
+        {
+            auto modern=Poppler::Document::load(saved); check(bool(modern),"open saved editing attachment");
+            for (auto *file:modern->embeddedFiles()) if (file->name()=="org.MyPdf.edit-state.v1.json") state=file->data();
+        }
         check(!state.isEmpty(),"new branding uses the renamed editing attachment");
         { QFile file(statePath); check(file.open(QIODevice::WriteOnly) && file.write(state)==state.size(),"write legacy state fixture"); }
         QProcess legacyTool;
@@ -41,12 +60,17 @@ int main(int argc,char **argv) {
         check(legacyTool.waitForFinished() && legacyTool.exitCode()==0,"create legacy branding fixture");
         Document legacy; legacy.open(legacyPath); check(legacy.objects(0).size()==2,"legacy PDF editing data remains readable");
         const QString upgradedPath=dir.filePath("upgraded.pdf"); legacy.save(upgradedPath);
-        auto upgraded=Poppler::Document::load(upgradedPath);
-        for (auto *file:upgraded->embeddedFiles()) check(file->name()!="org.mypdf.edit-state.v1.json","saving migrates legacy editing metadata");
+        {
+            auto upgraded=Poppler::Document::load(upgradedPath); check(bool(upgraded),"open migrated editing attachment");
+            for (auto *file:upgraded->embeddedFiles()) check(file->name()!="org.mypdf.edit-state.v1.json","saving migrates legacy editing metadata");
+        }
         Document migrated; migrated.open(upgradedPath); check(migrated.objects(0).size()==2,"migrated objects remain editable");
         Document reopened; reopened.open(saved); check(reopened.objects(0).size()==2 && !reopened.dirty(),"saved objects restored cleanly");
-        auto pdf=Poppler::Document::load(saved); auto extractedText=pdf->page(0)->text(QRectF());
-        check(extractedText.contains("Editable text") && extractedText.contains("Original searchable text"),"flattened appearance preserves searchable text");
+        {
+            auto pdf=Poppler::Document::load(saved); check(bool(pdf),"open saved text verification");
+            const auto extractedText=pdf->page(0)->text(QRectF());
+            check(extractedText.contains("Editable text") && extractedText.contains("Original searchable text"),"flattened appearance preserves searchable text");
+        }
         reopened.moveObject(textId,QPointF(2,2));
         check(reopened.objects(0).first().rect.right()<=1.000001 && reopened.objects(0).first().rect.bottom()<=1.000001,"movement clamps to page");
         const auto beforeFailure=reopened.render(0,72); const auto previousTool=qgetenv("MYPDF_QPDF");
@@ -143,8 +167,10 @@ int main(int argc,char **argv) {
         saveWindow(); Document resizedText; resizedText.open(saved);
         check(resizedText.objects(0).first().rect.width()<oldText.rect.width(),"text can be shrunk with corner handle");
         check(resizedText.objects(0).first().textSize==oldText.textSize,"text scaling preserves original line layout");
-        auto resizedPdf=Poppler::Document::load(saved);
-        check(resizedPdf->page(0)->text(QRectF()).contains("Editable text"),"resized text remains searchable after save");
+        {
+            auto resizedPdf=Poppler::Document::load(saved); check(bool(resizedPdf),"open resized text verification");
+            check(resizedPdf->page(0)->text(QRectF()).contains("Editable text"),"resized text remains searchable after save");
+        }
         key(view,Qt::Key_Down,Qt::ShiftModifier); key(view,Qt::Key_Backspace);
         check(view->selectedObject().isEmpty(),"Backspace removes text");
         saveWindow(); Document deleted; deleted.open(saved);
