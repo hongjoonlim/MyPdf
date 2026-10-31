@@ -104,7 +104,12 @@ include(GNUInstallDirs)
 install(TARGETS MyPdf BUNDLE DESTINATION . RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
 if(UNIX AND NOT APPLE)
   install(FILES assets/icons/MyPdf.png DESTINATION ${CMAKE_INSTALL_DATADIR}/pixmaps)
-  install(FILES assets/icons/MyPdf.png DESTINATION ${CMAKE_INSTALL_DATADIR}/icons/hicolor/256x256/apps)
+  install(FILES assets/icons/256x256/MyPdf.png DESTINATION ${CMAKE_INSTALL_DATADIR}/icons/hicolor/256x256/apps)
   configure_file(cmake/install_desktop.cmake.in generated/install_desktop.cmake @ONLY)
   install(SCRIPT "${CMAKE_CURRENT_BINARY_DIR}/generated/install_desktop.cmake")
+endif()
+
+if(UNIX AND NOT APPLE)
+  file(GENERATE OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/generated/$<CONFIG>/linux-package-tools.txt"
+    CONTENT "$<TARGET_FILE:MyPdf>\n$<TARGET_FILE:Qt6::qmake>\n${QPDF_EXECUTABLE}\n${PROJECT_VERSION}\n")
 endif()

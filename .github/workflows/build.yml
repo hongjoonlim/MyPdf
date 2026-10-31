@@ -19,6 +19,35 @@ jobs:
       - name: Build and test
         run: ./scripts/build.sh
 
+      - name: Test Linux packaging logic
+        run: python3 tests/package_linux_test.py
+      - name: Build Release AppImage
+        run: |
+          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+          cmake --build build --parallel
+          ctest --test-dir build --output-on-failure
+          ./scripts/package-linux.sh
+      - name: Test AppImage without Qt or qpdf installed
+        run: |
+          docker run --rm -v "$PWD:/work:ro" ubuntu:24.04 bash -euc '
+            apt-get update
+            apt-get install -y --no-install-recommends libegl1 libglx0 libopengl0 libx11-6 libx11-xcb1 libxcb1 libice6 libsm6 fonts-dejavu-core
+            cd /tmp
+            /work/dist/MyPdf-*-x86_64.AppImage --appimage-extract
+            export LD_LIBRARY_PATH=/tmp/squashfs-root/usr/lib
+            export QT_PLUGIN_PATH=/tmp/squashfs-root/usr/plugins
+            export QT_QPA_PLATFORM=offscreen
+            export MYPDF_QPDF=/tmp/squashfs-root/usr/bin/qpdf
+            export MYPDF_SMOKE_TEST=1
+            "$MYPDF_QPDF" --version
+            /tmp/squashfs-root/AppRun
+            /work/build/pdfcore_test
+          '
+      - uses: actions/upload-artifact@v4
+        with:
+          name: MyPdf-linux-x86_64
+          path: dist/*.AppImage*
+
   windows:
     runs-on: windows-latest
     steps:

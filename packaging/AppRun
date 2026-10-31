@@ -1,0 +1,11 @@
+#!/bin/sh
+set -eu
+appdir="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
+# Keep document arguments relative to the caller's directory. Only this process
+# uses the bundled libraries, plugins and qpdf; host Qt overrides do not leak in.
+export LD_LIBRARY_PATH="$appdir/usr/lib"
+export QT_PLUGIN_PATH="$appdir/usr/plugins"
+unset QT_QPA_PLATFORM_PLUGIN_PATH QML_IMPORT_PATH QML2_IMPORT_PATH
+export MYPDF_QPDF="$appdir/usr/bin/qpdf"
+export XDG_DATA_DIRS="$appdir/usr/share:${XDG_DATA_DIRS:-/usr/local/share:/usr/share}"
+exec "$appdir/usr/bin/MyPdf" "$@"
