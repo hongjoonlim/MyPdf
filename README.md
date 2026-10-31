@@ -30,7 +30,7 @@ Requires CMake 3.22+, a C++17 compiler, Qt 6.4+ Widgets, Poppler's Qt 6 bindings
 | --- | --- | --- |
 | Ubuntu 26.04 | GCC, system Qt / Poppler / qpdf | Built and tested locally after these changes. |
 | Windows x64 | MSYS2 UCRT64, GCC, Ninja | Build configuration and native CI added; not executed on Windows in this session. |
-| macOS | Apple Clang, Homebrew, native architecture | Build configuration and native CI added; not executed on macOS in this session. |
+| macOS | Apple Clang, Homebrew, native architecture | Build, tests and launch confirmed on the user’s Mac; standalone packaging needs separate Mac validation. |
 
 ### Ubuntu
 
@@ -186,11 +186,44 @@ ctest --test-dir build --output-on-failure
 
 `run.sh` locates the build relative to the script, without changing the working directory: relative document paths are resolved from the directory where you launch it. macOS and Windows also support configuration subdirectories such as `build/Debug` and `build/Release`. For a custom build directory, set `MYPDF_BUILD_DIR` (relative to your current directory, or absolute). Build directories and CMake caches are machine-specific; configure a fresh build on each operating system.
 
-For a development installation, use `cmake --install build --prefix /path/to/install`. macOS installs `MyPdf.app`; Windows installs `bin/MyPdf.exe`; Linux also installs the desktop entry and icon. These installs are **not self-contained distribution packages**: Qt plugins/libraries, Poppler dependencies, qpdf and its dependencies must still be available. Automatic DLL/dylib deployment, installers, macOS signing and notarization are not implemented.
+For a development installation, use `cmake --install build --prefix /path/to/install`. macOS installs `MyPdf.app`; Windows installs `bin/MyPdf.exe`; Linux also installs the desktop entry and icon. These installs are **not self-contained distribution packages**: Qt plugins/libraries, Poppler dependencies, qpdf and its dependencies must still be available. For self-contained macOS packaging, use the separate script below. Automatic Windows DLL deployment and installers are not implemented.
 
 qpdf lookup order: `MYPDF_QPDF`, an executable beside the application, `../Helpers/qpdf` (or `qpdf.exe`), `PATH`, then the executable found at configure time. A configure-time path is a development fallback tied to the build machine. For Finder launches, ensure qpdf is available at a supported location or use `run.sh` from a configured shell. Set `MYPDF_QPDF` to an executable path, without extra command arguments, to override discovery.
 
 The workflow [`.github/workflows/build.yml`](.github/workflows/build.yml) builds and tests on Ubuntu, Windows UCRT64, and macOS when pushed to GitHub. Adding the workflow does not mean those remote jobs have already passed.
+
+### macOS: install as a local app
+
+From the project directory on the Mac that built the app, install into your user Applications folder without administrator privileges:
+
+```bash
+mkdir -p "$HOME/Applications"
+cmake --install build --prefix "$HOME/Applications"
+open "$HOME/Applications/MyPdf.app"
+```
+
+Double-click `~/Applications/MyPdf.app` in Finder. Right-click its Dock icon and choose **Options → Keep in Dock** for convenient access. `run.sh` is no longer needed. This development installation still uses Homebrew Qt, Poppler and qpdf; keep those dependencies installed. To update, quit the app, run `./scripts/build.sh`, and repeat the installation command.
+
+### macOS: package a self-contained app
+
+Run on the Mac after updating the CMake files. Python 3, Xcode Command Line Tools, `macdeployqt` from the linked Qt installation, and qpdf are required. Complete the Homebrew/developer tool installation and build first.
+
+```bash
+./scripts/build.sh
+./scripts/package-macos.sh
+open dist/MyPdf.app
+```
+
+The result is `dist/MyPdf.app`. The script applies [Qt's official `macdeployqt`](https://doc.qt.io/qt-6/macos-deployment.html) to a copy of the build, includes `Contents/Helpers/qpdf`, and recursively bundles non-system libraries linked by Qt, Poppler and qpdf. It replaces plugin paths and library references with bundle-relative paths and checks for external references, missing files and architecture mismatches. It applies and verifies local ad-hoc signatures, then checks app startup and qpdf execution without Qt/DYLD environment overrides or Homebrew on PATH. The development `.app` in the build directory is preserved. Existing output is never overwritten: move the previous package or select a new path with `--output`.
+
+```bash
+./scripts/package-macos.sh --build-dir build --config Debug --output dist/MyPdf-new.app
+```
+
+For a Release or multi-configuration build, select the configuration actually built with `--config Release`. The script does not build the project. Copy the entire packaged app to `~/Applications` using Finder, quitting any installed copy first. The package does not require a Homebrew runtime, but uses macOS system libraries and system fonts; document fonts are not bundled separately. Apple Silicon/Intel and the minimum macOS version follow the built dependencies; packaging does not create a universal app. Validate PDF opening/saving, DOCX import, signatures and page editing on a compatible Mac without Homebrew before distribution. macOS packaging cannot run on Linux.
+
+The normal install command installs the development app; use the output under `dist` when installing the self-contained package. The GitHub macOS CI now includes packaging and retains a ZIP artifact named `MyPdf-macos`. Public Developer ID signing, notarization and DMG creation are not automated. Before redistribution, review included libraries' license, notice and source-availability obligations.
+
 
 ## Workspace
 

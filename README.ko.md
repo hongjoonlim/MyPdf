@@ -30,7 +30,7 @@ CMake 3.22 이상, C++17 컴파일러, Qt 6.4 이상 Widgets, Poppler의 Qt 6 �
 | --- | --- | --- |
 | Ubuntu 26.04 | GCC, 시스템 Qt / Poppler / qpdf | 이번 수정 후 로컬 빌드와 테스트 통과. |
 | Windows x64 | MSYS2 UCRT64, GCC, Ninja | 빌드 구성과 네이티브 CI 추가. 이번 세션에서 Windows 실행 검증은 하지 않음. |
-| macOS | Apple Clang, Homebrew, 현재 기기의 아키텍처 | 빌드 구성과 네이티브 CI 추가. 이번 세션에서 macOS 실행 검증은 하지 않음. |
+| macOS | Apple Clang, Homebrew, 현재 기기의 아키텍처 | 사용자 Mac에서 빌드·테스트·실행 확인. 독립 패키징은 별도 Mac 검증 필요. |
 
 ### Ubuntu
 
@@ -186,11 +186,44 @@ ctest --test-dir build --output-on-failure
 
 `run.sh`는 스크립트 위치를 기준으로 상대 경로로 실행 파일을 찾고 현재 작업 폴더는 변경하지 않습니다. 따라서 문서의 상대 경로는 스크립트를 실행한 폴더 기준으로 처리합니다. macOS·Windows의 `build/Debug`, `build/Release` 같은 구성별 출력 폴더도 지원합니다. 다른 빌드 폴더는 `MYPDF_BUILD_DIR`로 지정할 수 있습니다(현재 폴더 기준 상대 경로 또는 절대 경로). 빌드 폴더와 CMake 캐시는 운영체제·컴퓨터별로 새로 생성해야 합니다.
 
-개발용 설치는 `cmake --install build --prefix /path/to/install`로 수행합니다. macOS는 `MyPdf.app`, Windows는 `bin/MyPdf.exe`, Linux는 실행 파일과 데스크톱 런처·아이콘을 설치합니다. **의존성을 모두 포함한 독립 배포 패키지는 아닙니다.** Qt 플러그인·라이브러리, Poppler 의존성, qpdf와 그 의존성이 실행 환경에 있어야 합니다. 자동 DLL·dylib 배포, 설치 프로그램, macOS 서명·공증은 구현하지 않았습니다.
+개발용 설치는 `cmake --install build --prefix /path/to/install`로 수행합니다. macOS는 `MyPdf.app`, Windows는 `bin/MyPdf.exe`, Linux는 실행 파일과 데스크톱 런처·아이콘을 설치합니다. **의존성을 모두 포함한 독립 배포 패키지는 아닙니다.** Qt 플러그인·라이브러리, Poppler 의존성, qpdf와 그 의존성이 실행 환경에 있어야 합니다. macOS 독립 패키징은 아래 별도 스크립트를 사용합니다. Windows 자동 DLL 배포와 설치 프로그램은 구현하지 않았습니다.
 
 qpdf 탐색 순서는 `MYPDF_QPDF`, 앱 실행 파일 옆, `../Helpers/qpdf` 또는 `qpdf.exe`, `PATH`, CMake 구성 시 발견한 경로입니다. 마지막 경로는 빌드한 컴퓨터에 종속된 개발용 대체 경로입니다. Finder에서 실행하려면 지원 경로에 qpdf를 두거나 설정된 터미널에서 `run.sh`를 사용하세요. 탐색을 직접 지정하려면 `MYPDF_QPDF`에 추가 인자 없이 실행 파일 경로만 넣습니다.
 
 [`.github/workflows/build.yml`](.github/workflows/build.yml)은 GitHub에 올렸을 때 Ubuntu·Windows UCRT64·macOS에서 빌드와 테스트를 실행합니다. 워크플로 파일을 추가한 것과 실제 원격 작업이 통과한 것은 구분해야 합니다.
+
+### macOS: 일반 앱처럼 로컬에 설치
+
+빌드한 Mac에서 사용할 때는 프로젝트 폴더에서 아래 명령으로 사용자 응용 프로그램 폴더에 설치합니다. 관리자 권한은 필요하지 않습니다.
+
+```bash
+mkdir -p "$HOME/Applications"
+cmake --install build --prefix "$HOME/Applications"
+open "$HOME/Applications/MyPdf.app"
+```
+
+Finder에서 `~/Applications/MyPdf.app`을 더블클릭해 실행할 수 있습니다. Dock 아이콘을 우클릭하고 **옵션 → Dock에 유지**를 선택하면 다음부터 편하게 실행할 수 있습니다. `run.sh`는 필요하지 않습니다. 이 개발용 설치는 Homebrew의 Qt·Poppler·qpdf를 계속 사용하므로 해당 의존성을 유지하세요. 업데이트는 앱을 종료한 뒤 `./scripts/build.sh`와 위 설치 명령을 다시 실행합니다.
+
+### macOS: 라이브러리를 포함하는 독립 앱 패키징
+
+최신 CMake 파일을 반영한 뒤 Mac에서 실행합니다. Python 3, Xcode Command Line Tools, 빌드에 사용한 Qt의 `macdeployqt`, qpdf가 필요합니다. 앞의 Homebrew/개발 도구 설치와 빌드를 먼저 완료하세요.
+
+```bash
+./scripts/build.sh
+./scripts/package-macos.sh
+open dist/MyPdf.app
+```
+
+결과물은 `dist/MyPdf.app`입니다. 스크립트는 빌드 결과의 복사본에 [Qt 공식 `macdeployqt`](https://doc.qt.io/qt-6/macos-deployment.html)를 적용하고, `Contents/Helpers/qpdf`와 Qt·Poppler·qpdf가 연결하는 비시스템 라이브러리를 재귀적으로 포함합니다. 플러그인 경로와 라이브러리 참조를 앱 내부의 상대 경로로 바꾸고, 외부 참조·누락 파일·아키텍처를 검사합니다. 로컬 실행용 ad-hoc 서명과 서명 검증을 수행한 뒤, Qt/DYLD 환경 변수와 Homebrew PATH 없이 앱 시작 및 qpdf 실행을 확인합니다. 빌드 폴더의 개발용 `.app`은 변경하지 않습니다. 기존 출력은 덮어쓰지 않으므로 재패키징할 때 이전 결과를 이동하거나 `--output`으로 새 경로를 지정하세요.
+
+```bash
+./scripts/package-macos.sh --build-dir build --config Debug --output dist/MyPdf-new.app
+```
+
+Release 또는 다중 구성 빌드는 실제 빌드 구성에 맞춰 `--config Release`를 지정합니다. 스크립트가 빌드를 수행하지는 않습니다. 패키지의 앱 전체를 Finder에서 `~/Applications`로 복사하면 됩니다. 설치된 이전 앱은 먼저 종료하세요. 패키징된 앱은 Homebrew 런타임을 요구하지 않지만 macOS 시스템 라이브러리·시스템 폰트는 사용합니다. 문서의 폰트는 별도로 포함하지 않습니다. Apple Silicon/Intel과 지원되는 최소 macOS 버전은 빌드한 의존성에 따르며 universal 앱으로 변환하지 않습니다. 최종 확인은 Homebrew가 없는 호환 Mac에서 PDF 열기·저장, DOCX 가져오기, 서명·페이지 편집을 실행하세요. Linux에서는 macOS 패키징을 실행할 수 없습니다.
+
+일반 설치 명령은 개발용 `.app`을 설치하므로, 독립 패키지를 설치할 때는 반드시 `dist`의 결과물을 사용하세요. GitHub macOS CI에도 패키징 단계를 추가했으며 결과를 `MyPdf-macos` ZIP 아티팩트로 보관합니다. 공개 배포용 Developer ID 서명·공증 및 DMG 설치 이미지는 자동화하지 않았습니다. 다른 사용자에게 배포하기 전에는 포함 라이브러리의 라이선스·고지·소스 제공 의무도 확인해야 합니다.
+
 
 ## 화면 구성
 

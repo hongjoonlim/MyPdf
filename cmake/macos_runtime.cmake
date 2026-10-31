@@ -17,3 +17,13 @@ add_custom_command(TARGET MyPdf POST_BUILD
     "${CMAKE_CURRENT_BINARY_DIR}/generated/$<CONFIG>/qt.conf"
     "$<TARGET_BUNDLE_DIR:MyPdf>/Contents/Resources/qt.conf"
   VERBATIM)
+
+# Packaging metadata is kept outside the development app bundle.
+set(_mypdf_macdeployqt "")
+if(TARGET Qt6::macdeployqt)
+  set(_mypdf_macdeployqt "$<TARGET_FILE:Qt6::macdeployqt>")
+elseif(TARGET Qt6::qmake)
+  set(_mypdf_macdeployqt "$<TARGET_FILE_DIR:Qt6::qmake>/macdeployqt")
+endif()
+file(GENERATE OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/generated/$<CONFIG>/package-tools.txt"
+  CONTENT "$<TARGET_BUNDLE_DIR:MyPdf>\n${_mypdf_macdeployqt}\n${QPDF_EXECUTABLE}\n")

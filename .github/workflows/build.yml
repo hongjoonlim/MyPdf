@@ -57,3 +57,13 @@ jobs:
           test -f "$RUNNER_TEMP/MyPdf-install/MyPdf.app/Contents/MacOS/MyPdf"
           test -f "$RUNNER_TEMP/MyPdf-install/MyPdf.app/Contents/Resources/MyPdf.icns"
           test -f "$RUNNER_TEMP/MyPdf-install/MyPdf.app/Contents/Resources/qt.conf"
+      - name: Test dependency relocation
+        run: python3 tests/package_macos_test.py
+      - name: Package standalone macOS app
+        run: |
+          ./scripts/package-macos.sh
+          ditto -c -k --sequesterRsrc --keepParent dist/MyPdf.app dist/MyPdf-macos.zip
+      - uses: actions/upload-artifact@v4
+        with:
+          name: MyPdf-macos
+          path: dist/MyPdf-macos.zip

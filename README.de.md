@@ -30,7 +30,7 @@ Benötigt werden CMake ab 3.22, ein C++17-Compiler, Qt Widgets ab 6.4, die Qt-6-
 | --- | --- | --- |
 | Ubuntu 26.04 | GCC, Systembibliotheken Qt / Poppler / qpdf | Nach diesen Änderungen lokal kompiliert und getestet. |
 | Windows x64 | MSYS2 UCRT64, GCC, Ninja | Build-Konfiguration und native CI hinzugefügt; in dieser Sitzung nicht unter Windows ausgeführt. |
-| macOS | Apple Clang, Homebrew, native Architektur | Build-Konfiguration und native CI hinzugefügt; in dieser Sitzung nicht unter macOS ausgeführt. |
+| macOS | Apple Clang, Homebrew, native Architektur | Build, Tests und Start auf dem Mac des Benutzers bestätigt; eigenständiges Paket separat auf einem Mac prüfen. |
 
 ### Ubuntu
 
@@ -186,11 +186,44 @@ ctest --test-dir build --output-on-failure
 
 `run.sh` sucht relativ zum Skript und ändert das Arbeitsverzeichnis nicht. Relative Dokumentpfade beziehen sich damit auf das Verzeichnis des Aufrufs. Unter macOS und Windows werden auch Konfigurationsordner wie `build/Debug` und `build/Release` unterstützt. Andere Build-Ordner lassen sich mit `MYPDF_BUILD_DIR` angeben (relativ zum aktuellen Verzeichnis oder absolut). Build-Verzeichnisse und CMake-Caches müssen auf jedem Rechner und Betriebssystem neu erzeugt werden.
 
-Eine Entwicklungsinstallation erfolgt mit `cmake --install build --prefix /path/to/install`. macOS installiert `MyPdf.app`, Windows `bin/MyPdf.exe`; Linux installiert zusätzlich Desktop-Eintrag und Symbol. Dies sind **keine eigenständig verteilbaren Pakete**: Qt-Plugins und Bibliotheken, Poppler-Abhängigkeiten sowie qpdf mit seinen Abhängigkeiten müssen verfügbar bleiben. Automatische DLL-/dylib-Bereitstellung, Installationsprogramme sowie macOS-Signierung und Notarisierung sind nicht implementiert.
+Eine Entwicklungsinstallation erfolgt mit `cmake --install build --prefix /path/to/install`. macOS installiert `MyPdf.app`, Windows `bin/MyPdf.exe`; Linux installiert zusätzlich Desktop-Eintrag und Symbol. Dies sind **keine eigenständig verteilbaren Pakete**: Qt-Plugins und Bibliotheken, Poppler-Abhängigkeiten sowie qpdf mit seinen Abhängigkeiten müssen verfügbar bleiben. Für eigenständige macOS-Pakete das separate Skript unten verwenden. Automatische Windows-DLL-Bereitstellung und Installationsprogramme sind nicht implementiert.
 
 Die qpdf-Suche erfolgt in dieser Reihenfolge: `MYPDF_QPDF`, neben der Anwendung, `../Helpers/qpdf` bzw. `qpdf.exe`, `PATH` und zuletzt der beim Konfigurieren gefundene Pfad. Der letzte Pfad ist eine an den Build-Rechner gebundene Entwicklungshilfe. Für einen Finder-Start muss qpdf an einem unterstützten Ort liegen; alternativ starten Sie mit `run.sh` aus einer eingerichteten Shell. Mit `MYPDF_QPDF` können Sie den Programmpfad ohne zusätzliche Argumente ausdrücklich festlegen.
 
 Der Workflow [`.github/workflows/build.yml`](.github/workflows/build.yml) kompiliert und testet nach dem Hochladen auf GitHub nativ unter Ubuntu, Windows UCRT64 und macOS. Das Hinzufügen der Datei bedeutet nicht, dass diese entfernten Jobs bereits erfolgreich ausgeführt wurden.
+
+### macOS: als lokale App installieren
+
+Im Projektverzeichnis auf dem Mac, auf dem die App gebaut wurde, ohne Administratorrechte in den persönlichen Programme-Ordner installieren:
+
+```bash
+mkdir -p "$HOME/Applications"
+cmake --install build --prefix "$HOME/Applications"
+open "$HOME/Applications/MyPdf.app"
+```
+
+`~/Applications/MyPdf.app` im Finder doppelklicken. Im Kontextmenü des Dock-Symbols **Optionen → Im Dock behalten** auswählen. `run.sh` wird nicht mehr benötigt. Diese Entwicklungsinstallation verwendet weiterhin Qt, Poppler und qpdf aus Homebrew; diese Abhängigkeiten installiert lassen. Zum Aktualisieren die App beenden, `./scripts/build.sh` ausführen und den Installationsbefehl wiederholen.
+
+### macOS: eigenständiges App-Paket mit Bibliotheken
+
+Nach Übernahme der aktuellen CMake-Dateien auf dem Mac ausführen. Benötigt werden Python 3, Xcode Command Line Tools, `macdeployqt` aus der verknüpften Qt-Installation und qpdf. Zuerst die oben beschriebene Homebrew-/Entwicklerwerkzeug-Installation und den Build abschließen.
+
+```bash
+./scripts/build.sh
+./scripts/package-macos.sh
+open dist/MyPdf.app
+```
+
+Das Ergebnis ist `dist/MyPdf.app`. Das Skript wendet [Qt's offizielles `macdeployqt`](https://doc.qt.io/qt-6/macos-deployment.html) auf eine Build-Kopie an, integriert `Contents/Helpers/qpdf` und kopiert rekursiv die von Qt, Poppler und qpdf verknüpften Nicht-Systembibliotheken. Plugin-Pfade und Bibliotheksreferenzen werden durch Bundle-relative Pfade ersetzt. Externe Referenzen, fehlende Dateien und Architekturkonflikte werden geprüft. Anschließend erfolgen lokale Ad-hoc-Signierung, Signaturprüfung und Startprüfungen für App und qpdf ohne Qt-/DYLD-Umgebungsvariablen oder Homebrew im PATH. Das Entwicklungs-Bundle bleibt unverändert. Vorhandene Ausgaben werden nicht überschrieben: vorheriges Paket verschieben oder mit `--output` einen neuen Pfad wählen.
+
+```bash
+./scripts/package-macos.sh --build-dir build --config Debug --output dist/MyPdf-new.app
+```
+
+Für Release- oder Mehrkonfigurations-Builds die tatsächlich gebaute Konfiguration mit `--config Release` auswählen. Das Skript baut das Projekt nicht. Die gesamte paketierte App im Finder nach `~/Applications` kopieren; eine installierte App vorher beenden. Das Paket benötigt keine Homebrew-Laufzeit, verwendet jedoch macOS-Systembibliotheken und Systemschriften. Dokument-Schriften werden nicht separat mitgeliefert. Apple Silicon/Intel und die minimale macOS-Version richten sich nach den gebauten Abhängigkeiten; es entsteht keine Universal-App. PDF-Öffnen/Speichern, DOCX-Import, Unterschriften und Seitenbearbeitung vor Weitergabe auf einem kompatiblen Mac ohne Homebrew prüfen. macOS-Paketierung kann nicht unter Linux ausgeführt werden.
+
+Der normale Installationsbefehl installiert das Entwicklungs-Bundle; für die eigenständige Variante das Ergebnis aus `dist` verwenden. Die GitHub-macOS-CI enthält jetzt die Paketierung und speichert ein ZIP-Artefakt namens `MyPdf-macos`. Öffentliche Developer-ID-Signierung, Notarisierung und DMG-Erstellung sind nicht automatisiert. Vor Weitergabe die Lizenz-, Hinweis- und Quellcodepflichten der enthaltenen Bibliotheken prüfen.
+
 
 ## Arbeitsoberfläche
 
