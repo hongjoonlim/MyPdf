@@ -95,7 +95,8 @@ if(BUILD_TESTING)
   add_test(NAME object_editing COMMAND object_edit_test)
   include(cmake/test_environment.cmake)
   set_tests_properties(object_editing editable_objects native_docx pdf_operations localization signature_cancellation PROPERTIES
-    ENVIRONMENT "${MYPDF_GUI_TEST_ENVIRONMENT}")
+    ENVIRONMENT "${MYPDF_GUI_TEST_ENVIRONMENT}"
+    TIMEOUT 120)
 endif()
 
 include(GNUInstallDirs)

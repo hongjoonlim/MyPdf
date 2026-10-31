@@ -1,5 +1,6 @@
 #define MYPDF_NO_MAIN
 #include "../src/main.cpp"
+#include "file_dialog_automation.h"
 #include <QDataStream>
 #include <QBuffer>
 #include <poppler-qt6.h>
@@ -151,12 +152,15 @@ int main(int argc,char **argv) {
         auto *pages=window.findChild<QListWidget *>("pageList");
         check(view && view->isVisible() && pages->count()>=1 && window.windowTitle().contains('*'),"DOCX opens directly as an unsaved PDF");
         check(action(window,"Save")->isEnabled() && action(window,"Draw Signature…")->isEnabled() && action(window,"Blank Page…")->isEnabled(),"PDF editing available immediately after import");
-        QTimer::singleShot(0,[&] {for(auto *widget:app.topLevelWidgets()) if(auto *dialog=qobject_cast<QFileDialog *>(widget)) dialog->reject();});
-        action(window,"Save")->trigger();check(window.windowTitle().contains('*'),"cancel first save retains unsaved PDF");
-        const QString uiExport=temp.filePath("ui export.pdf");bool saveDialogShown=false;
-        QTimer::singleShot(0,[&] {for(auto *widget:app.topLevelWidgets()) if(auto *dialog=qobject_cast<QFileDialog *>(widget)) {saveDialogShown=true;dialog->selectFile(uiExport);QMetaObject::invokeMethod(dialog,"accept",Qt::DirectConnection);}});
-        action(window,"Save")->trigger();
-        check(saveDialogShown && QFile::exists(uiExport) && !window.windowTitle().contains('*'),"first save chooses a destination and saves PDF");
+        {
+            FileDialogAutomation chooser({},false); action(window,"Save")->trigger();
+            check(chooser.completed() && window.windowTitle().contains('*'),"cancel first save retains unsaved PDF");
+        }
+        const QString uiExport=temp.filePath("ui export.pdf");
+        {
+            FileDialogAutomation chooser(uiExport); action(window,"Save")->trigger();
+            check(chooser.completed() && QFile::exists(uiExport) && !window.windowTitle().contains('*'),"first save chooses a destination and saves PDF");
+        }
         QImage ink(80,30,QImage::Format_ARGB32);ink.fill(Qt::black);
         view->placed(ink,QRectF(.7,.7,.2,.1));
         check(window.windowTitle().contains('*') && action(window,"Delete Selected Object")->isEnabled(),"imported PDF accepts signatures");
@@ -172,19 +176,18 @@ int main(int argc,char **argv) {
         const QString pdf=temp.filePath("sample.pdf");{QPdfWriter writer(pdf);QPainter painter(&writer);painter.drawText(20,20,"PDF");}
         window.openPath(pdf);check(action(window,"Save")->isEnabled() && !window.windowTitle().contains('*'),"ordinary PDF opens normally");
         auto chooseInsert=[&](bool acceptFile) {
-            QTimer::singleShot(0,[&,acceptFile] {
+            FileDialogAutomation chooser(source,acceptFile);
+            QTimer::singleShot(0,[&] {
                 for(auto *widget:app.topLevelWidgets()) if(auto *dialog=qobject_cast<QInputDialog *>(widget)) {
-                    dialog->setIntValue(1);
-                    QTimer::singleShot(0,[&,acceptFile] {for(auto *next:app.topLevelWidgets()) if(auto *file=qobject_cast<QFileDialog *>(next)) {
-                        if(acceptFile) {file->selectFile(source);QMetaObject::invokeMethod(file,"accept",Qt::DirectConnection);} else file->reject();
-                    }});
-                    dialog->accept();
+                    dialog->setIntValue(1); dialog->accept();
                 }
             });
+            action(window,"Insert from PDF or DOCX…")->trigger();
+            check(chooser.completed(),"document picker completed without manual input");
         };
-        const int initialCount=pages->count();chooseInsert(true);action(window,"Insert from PDF or DOCX…")->trigger();
+        const int initialCount=pages->count();chooseInsert(true);
         check(pages->count()==initialCount+imported.count() && pages->currentRow()==0 && window.windowTitle().contains('*'),"menu inserts DOCX and selects first inserted page");
-        const auto titleBeforeCancel=window.windowTitle();chooseInsert(false);action(window,"Insert from PDF or DOCX…")->trigger();
+        const auto titleBeforeCancel=window.windowTitle();chooseInsert(false);
         check(pages->count()==initialCount+imported.count() && window.windowTitle()==titleBeforeCancel,"canceling document picker preserves insertion state");
         action(window,"Save")->trigger();check(pageText(pdf,0).contains("Hello World"),"inserted DOCX content persists after saving");
         QFile original(source);check(original.open(QIODevice::ReadOnly) && original.readAll()==bytes,"original Word file unchanged");

@@ -1,6 +1,8 @@
 #define MYPDF_NO_MAIN
 #include "../src/main.cpp"
+#include "file_dialog_automation.h"
 #include <QPdfWriter>
+#include <QEventLoop>
 #include <QTemporaryDir>
 #include <poppler-qt6.h>
 #include <iostream>
@@ -72,16 +74,35 @@ int main(int argc,char **argv) {
         saveWindow(window); Document redrawn; redrawn.open(saved);
         check(redrawn.objects(0).last().rect==signature.rect && redrawn.objects(0).last().image!=ink,"redrawn signature persists and retains geometry");
         QImage replacement(60,20,QImage::Format_ARGB32); replacement.fill(Qt::red); const QString png=dir.filePath("replacement.png"); replacement.save(png);
-        doubleClick(view,signaturePoint,[&](QDialog *dialog) {
-            QTimer::singleShot(0,[&] {
-                auto *file=qobject_cast<QFileDialog *>(QApplication::activeModalWidget()); check(file!=nullptr,"replacement image dialog appears");
-                file->selectFile(png); QMetaObject::invokeMethod(file,"accept",Qt::DirectConnection);
+        // Exercise a chooser that appears later, not in the first event-loop tick.
+        QEventLoop waitForChooser; QString chosen;
+        {
+            FileDialogAutomation chooser(png);
+            QTimer::singleShot(200,&waitForChooser,[&] {
+                QFileDialog file(&window,"Delayed signature image"); Icons::configureFileDialog(file);
+                file.setFileMode(QFileDialog::ExistingFile);
+                QTimer::singleShot(0,&file,[&file] { file.findChild<QLineEdit *>("fileNameEdit")->setFocus(); });
+                if (file.exec()==QDialog::Accepted) chosen=file.selectedFiles().value(0);
+                waitForChooser.quit();
             });
-            dialog->findChild<QPushButton *>("replaceSignature")->click(); dialog->accept();
+            waitForChooser.exec();
+            check(chooser.completed() && chosen==png,"delayed file chooser is automatically accepted");
+        }
+        doubleClick(view,signaturePoint,[&](QDialog *dialog) {
+            FileDialogAutomation chooser(png);
+            dialog->findChild<QPushButton *>("replaceSignature")->click();
+            check(chooser.completed(),"replacement image is selected after the file model becomes ready");
+            dialog->accept();
         });
         saveWindow(window); Document replaced; replaced.open(saved);
         check(replaced.objects(0).size()==2 && replaced.objects(0).last().id==signature.id && replaced.objects(0).last().rect==signature.rect,"replacement retains object identity and geometry");
         check(replaced.objects(0).last().image.pixelColor(10,10)==QColor(Qt::red),"signature replacement persists");
+        {
+            FileDialogAutomation chooser(png);
+            for (auto *action:window.findChildren<QAction *>()) if (action->text()==I18n::text("Import Signature Image…")) { action->trigger(); break; }
+            check(chooser.completed() && view->hasSignature(),"signature image import does not wait for user input");
+            view->setSignature({});
+        }
         auto result=Poppler::Document::load(saved); const QString searchable=result->page(0)->text(QRectF());
         check(searchable.contains("Changed text") && searchable.contains("Original text") && !searchable.contains("Editable text"),"edited PDF text stays searchable without the old text");
         const auto current=replaced.render(0,72); const auto tool=qgetenv("MYPDF_QPDF"); qputenv("MYPDF_QPDF",dir.filePath("missing-qpdf").toUtf8());

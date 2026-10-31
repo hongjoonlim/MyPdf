@@ -126,6 +126,19 @@ QT_DEBUG_PLUGINS=1 ctest --test-dir build -R '^pdf_operations$' -V
 
 전체 테스트 로그는 `build/Testing/Temporary/LastTest.log`에 있습니다. `Could not find/load the Qt platform plugin`, `Library not loaded`, `incompatible architecture` 등의 **실제 출력**을 기준으로 원인을 진단해야 합니다. 플러그인 경로가 다른 Qt/Python 환경을 가리키거나 Qt와 플러그인의 버전·아키텍처가 맞지 않는지도 확인합니다. `QT_DEBUG_PLUGINS`는 [Qt의 공식 플러그인 진단 옵션](https://doc.qt.io/qt-6/deployment-plugins.html)입니다. CTest의 테스트별 환경 설정이 우선하므로, 부모 셸에서 `QT_QPA_PLATFORM=cocoa`만 지정해도 해당 테스트 설정은 바뀌지 않습니다. 로그 확인 없이 테스트를 끄거나 패키지를 추가 설치하는 것으로 해결되었다고 판단하지 마세요.
 
+#### macOS: 테스트가 `Signature Image` 파일 선택 창에서 기다리는 경우
+
+사용자가 파일을 선택해야 하는 테스트가 아닙니다. Qt의 `selectFile()`은 파일명 입력칸에 포커스가 있으면 입력 내용을 바꾸지 않으므로, 기존의 즉시 선택·확인 방식이 파일 선택 창을 열어 둔 채 기다릴 수 있었습니다. 파일 모델 로딩도 비동기로 이루어집니다. 수정된 테스트는 창·모델을 기다리고 파일명 입력칸을 채운 뒤 실제 파일 선택 검증을 거쳐 확인합니다. 파일 선택 자동화는 10초, GUI 테스트 전체는 120초의 제한 시간을 둡니다.
+
+Mac 체크아웃에 `tests/file_dialog_automation.h`, `tests/object_edit_test.cpp`, `tests/docx_test.cpp`, `CMakeLists.txt`를 반영한 뒤 다시 빌드하세요.
+
+```bash
+MYPDF_TEST_QPA_PLATFORM=cocoa ./scripts/build.sh
+ctest --test-dir build -R '^(object_editing|native_docx)$' -V --timeout 120
+```
+
+창에 직접 입력할 필요는 없습니다. 실패하면 시간 초과 메시지의 파일 경로·활성 창 제목과 `LastTest.log`를 확인합니다. 이 변경은 테스트 자동화에 대한 것으로, 실제 프로그램의 서명 이미지 선택은 계속 사용자가 수행합니다.
+
 #### macOS: `Could NOT find WrapVulkanHeaders (missing Vulkan_INCLUDE_DIR)`
 
 Qt가 **선택적인 Vulkan 헤더**를 찾지 못했다는 메시지이며, 이 한 줄이 반드시 빌드 실패를 뜻하지는 않습니다. MyPdf는 Qt Widgets·QPainter·Poppler를 사용하고 Vulkan API를 직접 호출하지 않습니다. 이후 `Configuring done`, `Generating done`이 나오면 구성은 성공한 것입니다. 구성이 중단된다면 뒤이어 나오는 `CMake Error`와 다른 의존성 오류도 확인하세요. Qt도 이 의존성을 [구성 소스에서 선택 항목으로 표시](https://github.com/qt/qtbase/blob/6.10/src/gui/configure.cmake#L74-L75)합니다.

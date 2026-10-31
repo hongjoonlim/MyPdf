@@ -126,6 +126,19 @@ QT_DEBUG_PLUGINS=1 ctest --test-dir build -R '^pdf_operations$' -V
 
 The full test log is `build/Testing/Temporary/LastTest.log`. Diagnose from the actual output, such as `Could not find/load the Qt platform plugin`, `Library not loaded` or `incompatible architecture`. Check whether plugin paths point to another Qt/Python installation and whether Qt and its plugins have matching versions and architectures. `QT_DEBUG_PLUGINS` is an [official Qt plugin diagnostic option](https://doc.qt.io/qt-6/deployment-plugins.html). Test-specific CTest environment settings override the parent environment: setting only `QT_QPA_PLATFORM=cocoa` in the shell does not override this configuration. Disabling tests or installing more packages without checking the log does not establish a fix.
 
+#### macOS: a test waits at the `Signature Image` file chooser
+
+These tests do not require manual file selection. Qt's `selectFile()` leaves the filename edit unchanged when it has focus, so the previous immediate select-and-accept callback could leave the chooser open. The file-system model also loads asynchronously. Updated tests wait for the dialog/model, fill the filename field and use the actual file-selection validation before accepting. File chooser automation has a 10-second limit, and each GUI test has a 120-second timeout.
+
+Update `tests/file_dialog_automation.h`, `tests/object_edit_test.cpp`, `tests/docx_test.cpp` and `CMakeLists.txt` in the Mac checkout, then rebuild:
+
+```bash
+MYPDF_TEST_QPA_PLATFORM=cocoa ./scripts/build.sh
+ctest --test-dir build -R '^(object_editing|native_docx)$' -V --timeout 120
+```
+
+Do not enter anything manually. On failure, inspect the file path and active window title in the timeout message, plus `LastTest.log`. This change affects test automation; the real application still lets users select signature images themselves.
+
 #### macOS: `Could NOT find WrapVulkanHeaders (missing Vulkan_INCLUDE_DIR)`
 
 This is Qt's probe for optional Vulkan headers, not necessarily a fatal build error. MyPdf uses Qt Widgets, QPainter and Poppler, and does not call Vulkan. If CMake reaches `Configuring done` and `Generating done`, this message did not stop configuration. If configuration fails, inspect the following `CMake Error` and dependency messages as well. Qt marks this dependency optional in its [configuration source](https://github.com/qt/qtbase/blob/6.10/src/gui/configure.cmake#L74-L75).

@@ -126,6 +126,19 @@ QT_DEBUG_PLUGINS=1 ctest --test-dir build -R '^pdf_operations$' -V
 
 Das vollständige Protokoll steht unter `build/Testing/Temporary/LastTest.log`. Anhand tatsächlicher Meldungen wie `Could not find/load the Qt platform plugin`, `Library not loaded` oder `incompatible architecture` diagnostizieren. Prüfen, ob Plugin-Pfade auf eine andere Qt-/Python-Installation zeigen und ob Qt und Plugins dieselbe Version und Architektur verwenden. `QT_DEBUG_PLUGINS` ist eine [offizielle Qt-Diagnoseoption](https://doc.qt.io/qt-6/deployment-plugins.html). Testspezifische CTest-Umgebungswerte überschreiben die Elternumgebung: Nur `QT_QPA_PLATFORM=cocoa` in der Shell zu setzen ändert diese Konfiguration nicht. Tests abzuschalten oder ohne Protokoll weitere Pakete zu installieren belegt keine Behebung.
 
+#### macOS: ein Test wartet im Dateidialog `Signature Image`
+
+Die Tests benötigen keine manuelle Dateiauswahl. Qt ändert mit `selectFile()` das Dateinamenfeld nicht, wenn dieses den Fokus hat. Der bisherige sofortige Auswahl-/Bestätigungsaufruf konnte den Dialog daher offen lassen. Zusätzlich lädt das Dateisystemmodell asynchron. Aktualisierte Tests warten auf Dialog/Modell, füllen das Dateinamenfeld und bestätigen über die echte Dateiauswahlprüfung. Für die Automatisierung gelten 10 Sekunden, pro GUI-Test 120 Sekunden Zeitlimit.
+
+`tests/file_dialog_automation.h`, `tests/object_edit_test.cpp`, `tests/docx_test.cpp` und `CMakeLists.txt` im Mac-Checkout aktualisieren und neu bauen:
+
+```bash
+MYPDF_TEST_QPA_PLATFORM=cocoa ./scripts/build.sh
+ctest --test-dir build -R '^(object_editing|native_docx)$' -V --timeout 120
+```
+
+Nichts manuell eingeben. Bei einem Fehler Dateipfad und aktiven Fenstertitel in der Zeitüberschreitungsmeldung sowie `LastTest.log` prüfen. Geändert wird die Testautomatisierung; in der Anwendung wählen Benutzer ihre Unterschriftsbilder weiterhin selbst aus.
+
 #### macOS: `Could NOT find WrapVulkanHeaders (missing Vulkan_INCLUDE_DIR)`
 
 Qt findet optionale Vulkan-Header nicht; diese einzelne Meldung bedeutet nicht zwingend einen Build-Abbruch. MyPdf verwendet Qt Widgets, QPainter und Poppler und ruft Vulkan nicht direkt auf. Erscheinen danach `Configuring done` und `Generating done`, war die Konfiguration erfolgreich. Bei einem Abbruch auch die folgenden `CMake Error`- und Abhängigkeitsmeldungen prüfen. Qt kennzeichnet diese Abhängigkeit im [Konfigurationsquelltext als optional](https://github.com/qt/qtbase/blob/6.10/src/gui/configure.cmake#L74-L75).
