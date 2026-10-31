@@ -62,12 +62,35 @@ pacman -S --needed mingw-w64-ucrt-x86_64-gcc mingw-w64-ucrt-x86_64-cmake mingw-w
 
 ```bash
 xcode-select --install
-brew install cmake ninja pkgconf qtbase qttranslations poppler-qt6 qpdf zlib
+brew install cmake ninja pkgconf qtbase qttranslations poppler-qt6 qpdf zlib vulkan-headers
 ./scripts/build.sh
 ./scripts/run.sh
 ```
 
 `build.sh`가 Homebrew의 Qt와 Poppler 경로를 자동 지정합니다. Qt 6 바인딩이 필요하므로 `poppler`만 설치하지 말고 **poppler-qt6**를 사용하세요. 이 패키지는 keg-only입니다. [Homebrew 패키지 설명](https://formulae.brew.sh/formula/poppler-qt6)을 참고하세요. 결과물은 `build/MyPdf.app`이며 실제 실행 파일은 `build/MyPdf.app/Contents/MacOS/MyPdf`입니다. 포메라니안 `.icns` 아이콘을 포함합니다. Apple Silicon·Intel은 각각 현재 기기에 맞는 의존성을 사용하며, universal binary를 생성하지는 않습니다.
+
+#### macOS: `Could NOT find WrapVulkanHeaders (missing Vulkan_INCLUDE_DIR)`
+
+Qt가 **선택적인 Vulkan 헤더**를 찾지 못했다는 메시지이며, 이 한 줄이 반드시 빌드 실패를 뜻하지는 않습니다. MyPdf는 Qt Widgets·QPainter·Poppler를 사용하고 Vulkan API를 직접 호출하지 않습니다. 이후 `Configuring done`, `Generating done`이 나오면 구성은 성공한 것입니다. 구성이 중단된다면 뒤이어 나오는 `CMake Error`와 다른 의존성 오류도 확인하세요. Qt도 이 의존성을 [구성 소스에서 선택 항목으로 표시](https://github.com/qt/qtbase/blob/6.10/src/gui/configure.cmake#L74-L75)합니다.
+
+위 macOS 설치 명령에는 헤더 탐색을 해결하는 [Homebrew의 `vulkan-headers`](https://formulae.brew.sh/formula/vulkan-headers)를 포함했습니다. 이전 README로 설치했다면 다음을 실행하세요.
+
+```bash
+brew install vulkan-headers
+./scripts/build.sh
+```
+
+`build.sh`는 Homebrew에 설치된 헤더를 감지해 `Vulkan_INCLUDE_DIR`를 자동 전달합니다. CMake를 직접 실행한다면 다음처럼 지정합니다.
+
+```bash
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug \
+  -DCMAKE_PREFIX_PATH="$(brew --prefix qtbase);$(brew --prefix poppler-qt6);$(brew --prefix zlib)" \
+  -DVulkan_INCLUDE_DIR="$(brew --prefix vulkan-headers)/include"
+cmake --build build --parallel
+```
+
+이 메시지를 해결하는 데는 헤더 패키지만 필요하며, MyPdf용으로 Vulkan SDK·Vulkan 로더·MoltenVK 런타임까지 설치할 필요는 없습니다. 다른 Qt·Poppler 의존성 오류는 별도로 해결해야 합니다.
+
 
 ### 공통 명령과 설치
 

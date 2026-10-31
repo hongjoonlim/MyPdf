@@ -46,7 +46,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Install dependencies
-        run: brew install cmake ninja pkgconf qtbase qttranslations poppler-qt6 qpdf zlib
+        run: brew install cmake ninja pkgconf qtbase qttranslations poppler-qt6 qpdf zlib vulkan-headers
       - name: Build and test
         run: ./scripts/build.sh
       - name: Check app bundle installation

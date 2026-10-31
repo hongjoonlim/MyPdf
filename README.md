@@ -62,12 +62,35 @@ Install [Homebrew](https://brew.sh/) first. In the project directory, run the fo
 
 ```bash
 xcode-select --install
-brew install cmake ninja pkgconf qtbase qttranslations poppler-qt6 qpdf zlib
+brew install cmake ninja pkgconf qtbase qttranslations poppler-qt6 qpdf zlib vulkan-headers
 ./scripts/build.sh
 ./scripts/run.sh
 ```
 
 `build.sh` supplies the Homebrew Qt and Poppler prefixes automatically. Use **poppler-qt6**, not just `poppler`: its Qt 6 bindings are required and the formula is keg-only. See [the Homebrew formula](https://formulae.brew.sh/formula/poppler-qt6). Output: `build/MyPdf.app`; the executable is `build/MyPdf.app/Contents/MacOS/MyPdf`. The bundle includes the Pomeranian `.icns` icon. Use native dependencies for Apple Silicon or Intel; this does not create a universal binary.
+
+#### macOS: `Could NOT find WrapVulkanHeaders (missing Vulkan_INCLUDE_DIR)`
+
+This is Qt's probe for optional Vulkan headers, not necessarily a fatal build error. MyPdf uses Qt Widgets, QPainter and Poppler, and does not call Vulkan. If CMake reaches `Configuring done` and `Generating done`, this message did not stop configuration. If configuration fails, inspect the following `CMake Error` and dependency messages as well. Qt marks this dependency optional in its [configuration source](https://github.com/qt/qtbase/blob/6.10/src/gui/configure.cmake#L74-L75).
+
+The macOS setup command above includes [Homebrew's `vulkan-headers`](https://formulae.brew.sh/formula/vulkan-headers) to satisfy the probe. If you followed an older README, install it and retry:
+
+```bash
+brew install vulkan-headers
+./scripts/build.sh
+```
+
+`build.sh` detects the installed Homebrew headers and passes `Vulkan_INCLUDE_DIR` automatically. For manual configuration, use:
+
+```bash
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug \
+  -DCMAKE_PREFIX_PATH="$(brew --prefix qtbase);$(brew --prefix poppler-qt6);$(brew --prefix zlib)" \
+  -DVulkan_INCLUDE_DIR="$(brew --prefix vulkan-headers)/include"
+cmake --build build --parallel
+```
+
+For this message, a Vulkan SDK, Vulkan loader or MoltenVK runtime is not required by MyPdf; the header package is sufficient. Installing headers does not resolve unrelated Qt/Poppler dependency errors.
+
 
 ### Shared commands and installation
 
