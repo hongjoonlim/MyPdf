@@ -69,6 +69,29 @@ brew install cmake ninja pkgconf qtbase qttranslations poppler-qt6 qpdf zlib vul
 
 `build.sh` übergibt automatisch die Homebrew-Präfixe von Qt und Poppler. Benötigt wird **poppler-qt6**, nicht nur `poppler`, da die Qt-6-Anbindung erforderlich ist. Die Formel ist keg-only; siehe [Homebrew-Paketbeschreibung](https://formulae.brew.sh/formula/poppler-qt6). Ergebnis: `build/MyPdf.app` mit der Programmdatei `build/MyPdf.app/Contents/MacOS/MyPdf` und dem Pomeranian-Symbol im `.icns`-Format. Verwenden Sie für Apple Silicon bzw. Intel jeweils native Abhängigkeiten; es wird keine Universal-Binärdatei erzeugt.
 
+#### macOS: `Could not find POPPLER_INCLUDE_DIR ... poppler-qt6.h`
+
+Hier fehlen die **erforderlichen Poppler-Qt-6-Entwicklungsheader**, im Unterschied zur optionalen Vulkan-Suche oben. Das normale `poppler` genügt nicht. Homebrews separates [poppler-qt6-Paket](https://formulae.brew.sh/formula/poppler-qt6) ist keg-only und liegt möglicherweise außerhalb der Standardsuchpfade.
+
+```bash
+brew install poppler-qt6 pkgconf
+brew list --versions poppler-qt6
+ls "$(brew --prefix poppler-qt6)/include/poppler/qt6/poppler-qt6.h"
+./scripts/build.sh
+```
+
+Das aktualisierte `build.sh` prüft Header und Bibliothek und übergibt Homebrews pkg-config-Pfad sowie `POPPLER_INCLUDE_DIR` und `POPPLER_LIBRARY` ausdrücklich. Auch das Skript im Mac-Checkout aktualisieren. Wird das Paket angezeigt, aber der Header fehlt, hilft `brew reinstall poppler-qt6`. Qt, Poppler und Compiler müssen dieselbe Architektur verwenden; Apple-Silicon- und Intel/Rosetta-Homebrew nicht mischen.
+
+Bei manueller CMake-Konfiguration:
+
+```bash
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug \
+  -DCMAKE_PREFIX_PATH="$(brew --prefix qtbase);$(brew --prefix poppler-qt6);$(brew --prefix zlib)" \
+  -DPOPPLER_INCLUDE_DIR="$(brew --prefix poppler-qt6)/include/poppler/qt6" \
+  -DPOPPLER_LIBRARY="$(brew --prefix poppler-qt6)/lib/libpoppler-qt6.dylib"
+cmake --build build --parallel
+```
+
 #### macOS: `Could NOT find WrapVulkanHeaders (missing Vulkan_INCLUDE_DIR)`
 
 Qt findet optionale Vulkan-Header nicht; diese einzelne Meldung bedeutet nicht zwingend einen Build-Abbruch. MyPdf verwendet Qt Widgets, QPainter und Poppler und ruft Vulkan nicht direkt auf. Erscheinen danach `Configuring done` und `Generating done`, war die Konfiguration erfolgreich. Bei einem Abbruch auch die folgenden `CMake Error`- und Abhängigkeitsmeldungen prüfen. Qt kennzeichnet diese Abhängigkeit im [Konfigurationsquelltext als optional](https://github.com/qt/qtbase/blob/6.10/src/gui/configure.cmake#L74-L75).

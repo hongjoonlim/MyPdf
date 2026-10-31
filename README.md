@@ -69,6 +69,29 @@ brew install cmake ninja pkgconf qtbase qttranslations poppler-qt6 qpdf zlib vul
 
 `build.sh` supplies the Homebrew Qt and Poppler prefixes automatically. Use **poppler-qt6**, not just `poppler`: its Qt 6 bindings are required and the formula is keg-only. See [the Homebrew formula](https://formulae.brew.sh/formula/poppler-qt6). Output: `build/MyPdf.app`; the executable is `build/MyPdf.app/Contents/MacOS/MyPdf`. The bundle includes the Pomeranian `.icns` icon. Use native dependencies for Apple Silicon or Intel; this does not create a universal binary.
 
+#### macOS: `Could not find POPPLER_INCLUDE_DIR ... poppler-qt6.h`
+
+This error means the **required Poppler Qt 6 development headers** were not found, unlike the optional Vulkan probe above. Plain `poppler` is not sufficient. Homebrew's separate [poppler-qt6 package](https://formulae.brew.sh/formula/poppler-qt6) is keg-only, so its files may be outside the default search path even when installed.
+
+```bash
+brew install poppler-qt6 pkgconf
+brew list --versions poppler-qt6
+ls "$(brew --prefix poppler-qt6)/include/poppler/qt6/poppler-qt6.h"
+./scripts/build.sh
+```
+
+The updated `build.sh` checks that the header and library exist and explicitly supplies Homebrew's pkg-config path, `POPPLER_INCLUDE_DIR` and `POPPLER_LIBRARY`. Update the script in your Mac checkout as well. If Homebrew lists the package but the header is absent, use `brew reinstall poppler-qt6`. Keep Qt, Poppler and the compiler on the same architecture; do not mix Apple Silicon and Intel/Rosetta Homebrew installations.
+
+For manual CMake configuration:
+
+```bash
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug \
+  -DCMAKE_PREFIX_PATH="$(brew --prefix qtbase);$(brew --prefix poppler-qt6);$(brew --prefix zlib)" \
+  -DPOPPLER_INCLUDE_DIR="$(brew --prefix poppler-qt6)/include/poppler/qt6" \
+  -DPOPPLER_LIBRARY="$(brew --prefix poppler-qt6)/lib/libpoppler-qt6.dylib"
+cmake --build build --parallel
+```
+
 #### macOS: `Could NOT find WrapVulkanHeaders (missing Vulkan_INCLUDE_DIR)`
 
 This is Qt's probe for optional Vulkan headers, not necessarily a fatal build error. MyPdf uses Qt Widgets, QPainter and Poppler, and does not call Vulkan. If CMake reaches `Configuring done` and `Generating done`, this message did not stop configuration. If configuration fails, inspect the following `CMake Error` and dependency messages as well. Qt marks this dependency optional in its [configuration source](https://github.com/qt/qtbase/blob/6.10/src/gui/configure.cmake#L74-L75).

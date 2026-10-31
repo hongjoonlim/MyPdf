@@ -69,6 +69,29 @@ brew install cmake ninja pkgconf qtbase qttranslations poppler-qt6 qpdf zlib vul
 
 `build.sh`가 Homebrew의 Qt와 Poppler 경로를 자동 지정합니다. Qt 6 바인딩이 필요하므로 `poppler`만 설치하지 말고 **poppler-qt6**를 사용하세요. 이 패키지는 keg-only입니다. [Homebrew 패키지 설명](https://formulae.brew.sh/formula/poppler-qt6)을 참고하세요. 결과물은 `build/MyPdf.app`이며 실제 실행 파일은 `build/MyPdf.app/Contents/MacOS/MyPdf`입니다. 포메라니안 `.icns` 아이콘을 포함합니다. Apple Silicon·Intel은 각각 현재 기기에 맞는 의존성을 사용하며, universal binary를 생성하지는 않습니다.
 
+#### macOS: `Could not find POPPLER_INCLUDE_DIR ... poppler-qt6.h`
+
+이 오류는 빌드에 **필수인 Poppler Qt 6 개발 헤더**를 찾지 못했다는 뜻입니다. 위의 선택적 Vulkan 메시지와 구분해야 합니다. Homebrew의 일반 `poppler` 설치만으로는 Qt 6 바인딩을 사용할 수 없습니다. [별도 `poppler-qt6` 패키지](https://formulae.brew.sh/formula/poppler-qt6)는 keg-only이므로 설치되어 있어도 기본 검색 경로에 없을 수 있습니다.
+
+```bash
+brew install poppler-qt6 pkgconf
+brew list --versions poppler-qt6
+ls "$(brew --prefix poppler-qt6)/include/poppler/qt6/poppler-qt6.h"
+./scripts/build.sh
+```
+
+수정된 `build.sh`는 헤더와 라이브러리의 실제 존재를 확인하고 Homebrew의 `pkg-config` 검색 경로, `POPPLER_INCLUDE_DIR`, `POPPLER_LIBRARY`를 명시적으로 전달합니다. 기존 Mac 체크아웃에도 최신 스크립트를 반영하세요. 설치되었다고 나오는데 위 헤더가 없다면 `brew reinstall poppler-qt6`로 재설치합니다. Apple Silicon과 Intel/Rosetta용 Homebrew를 섞지 말고 Qt·Poppler·컴파일러를 같은 아키텍처로 사용하세요.
+
+CMake를 직접 실행할 때는 다음처럼 지정할 수 있습니다.
+
+```bash
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug \
+  -DCMAKE_PREFIX_PATH="$(brew --prefix qtbase);$(brew --prefix poppler-qt6);$(brew --prefix zlib)" \
+  -DPOPPLER_INCLUDE_DIR="$(brew --prefix poppler-qt6)/include/poppler/qt6" \
+  -DPOPPLER_LIBRARY="$(brew --prefix poppler-qt6)/lib/libpoppler-qt6.dylib"
+cmake --build build --parallel
+```
+
 #### macOS: `Could NOT find WrapVulkanHeaders (missing Vulkan_INCLUDE_DIR)`
 
 Qt가 **선택적인 Vulkan 헤더**를 찾지 못했다는 메시지이며, 이 한 줄이 반드시 빌드 실패를 뜻하지는 않습니다. MyPdf는 Qt Widgets·QPainter·Poppler를 사용하고 Vulkan API를 직접 호출하지 않습니다. 이후 `Configuring done`, `Generating done`이 나오면 구성은 성공한 것입니다. 구성이 중단된다면 뒤이어 나오는 `CMake Error`와 다른 의존성 오류도 확인하세요. Qt도 이 의존성을 [구성 소스에서 선택 항목으로 표시](https://github.com/qt/qtbase/blob/6.10/src/gui/configure.cmake#L74-L75)합니다.

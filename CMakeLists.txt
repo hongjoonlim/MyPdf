@@ -7,14 +7,21 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 find_package(Qt6 6.4 REQUIRED COMPONENTS Widgets)
 find_package(ZLIB REQUIRED)
 find_package(PkgConfig QUIET)
-if(PkgConfig_FOUND)
+if(PkgConfig_FOUND AND NOT (POPPLER_INCLUDE_DIR AND POPPLER_LIBRARY))
   pkg_check_modules(POPPLER QUIET IMPORTED_TARGET poppler-qt6)
 endif()
 if(TARGET PkgConfig::POPPLER)
   set(MYPDF_POPPLER_TARGET PkgConfig::POPPLER)
 else()
-  find_path(POPPLER_INCLUDE_DIR poppler-qt6.h PATH_SUFFIXES poppler/qt6 REQUIRED)
-  find_library(POPPLER_LIBRARY NAMES poppler-qt6 REQUIRED)
+  find_path(POPPLER_INCLUDE_DIR poppler-qt6.h PATH_SUFFIXES poppler/qt6)
+  find_library(POPPLER_LIBRARY NAMES poppler-qt6)
+  if(NOT POPPLER_INCLUDE_DIR OR NOT POPPLER_LIBRARY)
+    message(FATAL_ERROR
+      "Poppler Qt 6 development files were not found (poppler-qt6.h / libpoppler-qt6). "
+      "macOS: brew install poppler-qt6 pkgconf, then use ./scripts/build.sh. "
+      "Ubuntu: install libpoppler-qt6-dev. The plain poppler package is not sufficient. "
+      "For a custom installation, set POPPLER_INCLUDE_DIR and POPPLER_LIBRARY explicitly.")
+  endif()
   add_library(MyPdf_poppler UNKNOWN IMPORTED)
   set_target_properties(MyPdf_poppler PROPERTIES
     IMPORTED_LOCATION "${POPPLER_LIBRARY}"
