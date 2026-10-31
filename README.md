@@ -191,6 +191,24 @@ Keep the AppImage in any folder. To update, quit the app and replace the AppImag
 
 Native `x86_64` and `aarch64` are supported; local validation currently covers x86_64. The app uses host glibc, graphics drivers, X11/XWayland and fonts. **It does not run on every Linux version.** Build on the oldest OS you intend to support. An Ubuntu 26.04 build is not guaranteed to run on older Ubuntu releases. CI is configured to build on Ubuntu 24.04 and check startup/PDF operations in a container without Qt, Poppler or qpdf installed. Verify opening/saving, signatures and page editing on your destination OS before distribution. deb packaging and automatic updates are not provided.
 
+#### Install under your home directory without a versioned name
+
+After the Release build and AppImage packaging, copy the app to `~/.local/bin/MyPdf` from the project directory. Quit any running MyPdf first. No administrator privileges are needed, and the command sets executable permissions. Replace the source filename with the actual version and architecture produced.
+
+```bash
+install -Dm755 dist/MyPdf-0.1.0-x86_64.AppImage "$HOME/.local/bin/MyPdf"
+"$HOME/.local/bin/MyPdf"
+```
+
+An AppImage runs without a filename extension. If `~/.local/bin` is on `PATH`, launch it as `MyPdf` from any directory. Otherwise run the following, and add the `export` line to your shell startup file (for example `~/.bashrc` for Bash) to keep the setting:
+
+```bash
+export PATH="$HOME/.local/bin:$PATH"
+MyPdf
+```
+
+To update, quit the app and copy the new AppImage with the same installation command. Without FUSE, run `APPIMAGE_EXTRACT_AND_RUN=1 "$HOME/.local/bin/MyPdf"`.
+
 ### Windows: installed runtimes
 
 On Windows, `cmake --install` installs the app without copying DLLs. Install MSYS2 UCRT64 and the packages above on the destination, then launch from UCRT64. Windows portable packaging and installers are not yet provided.

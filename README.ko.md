@@ -191,6 +191,24 @@ AppImage는 원하는 폴더에 보관하고 실행할 수 있습니다. 업데�
 
 지원 아키텍처는 네이티브 `x86_64`와 `aarch64`이며 현재 로컬 검증은 x86_64입니다. 시스템의 glibc·그래픽 드라이버·X11/XWayland·폰트는 사용합니다. **모든 Linux 버전에서 실행되는 것은 아닙니다.** 넓게 배포하려면 지원할 가장 오래된 OS에서 빌드하세요. Ubuntu 26.04에서 만든 파일을 이전 Ubuntu에서 실행할 수 있다고 보장하지 않습니다. CI는 Ubuntu 24.04에서 AppImage를 만들고 Qt·Poppler·qpdf가 없는 컨테이너에서 실행·PDF 작업을 검사하도록 구성되어 있습니다. 배포 대상 OS에서도 문서 열기·저장·서명·페이지 편집을 확인하세요. deb·자동 업데이트는 제공하지 않습니다.
 
+#### 사용자 폴더에 버전 없는 이름으로 설치
+
+Release 빌드와 AppImage 패키징을 마친 뒤, 프로젝트 폴더에서 아래 명령으로 `~/.local/bin/MyPdf`에 복사할 수 있습니다. 실행 중인 MyPdf를 먼저 종료하세요. 관리자 권한은 필요하지 않으며 실행 권한도 함께 설정합니다. 원본 파일명은 실제 생성된 버전·아키텍처에 맞게 바꾸세요.
+
+```bash
+install -Dm755 dist/MyPdf-0.1.0-x86_64.AppImage "$HOME/.local/bin/MyPdf"
+"$HOME/.local/bin/MyPdf"
+```
+
+AppImage는 확장자가 없어도 실행됩니다. `~/.local/bin`이 `PATH`에 있으면 어느 폴더에서든 `MyPdf`로 실행할 수 있습니다. 경로가 없다면 다음을 실행하고, 계속 적용하려면 `export` 줄을 사용하는 셸의 시작 설정 파일(예: Bash의 `~/.bashrc`)에도 추가하세요.
+
+```bash
+export PATH="$HOME/.local/bin:$PATH"
+MyPdf
+```
+
+업데이트할 때는 앱을 종료한 뒤 새 AppImage를 같은 설치 명령으로 복사하면 됩니다. FUSE 없이 실행하려면 `APPIMAGE_EXTRACT_AND_RUN=1 "$HOME/.local/bin/MyPdf"`를 사용하세요.
+
 ### Windows: 런타임이 있는 환경
 
 Windows의 `cmake --install`은 앱을 설치하며 DLL은 복사하지 않습니다. 대상에도 MSYS2 UCRT64와 위 패키지를 설치한 뒤 UCRT64 터미널에서 실행하세요. Windows 포터블 패키징과 설치 프로그램은 아직 제공하지 않습니다.

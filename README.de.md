@@ -191,6 +191,24 @@ Das AppImage kann in einem beliebigen Ordner liegen. Zum Aktualisieren die App b
 
 Native `x86_64` und `aarch64` werden unterstützt; lokal wurde bisher x86_64 geprüft. glibc, Grafiktreiber, X11/XWayland und Schriften stammen vom Zielsystem. **Nicht jede Linux-Version ist kompatibel.** Auf dem ältesten zu unterstützenden Betriebssystem bauen. Ein Ubuntu-26.04-Build läuft nicht garantiert auf älteren Ubuntu-Versionen. Die CI ist für einen Ubuntu-24.04-Build sowie Start-/PDF-Prüfungen in einem Container ohne installiertes Qt, Poppler oder qpdf eingerichtet. Öffnen/Speichern, Unterschriften und Seitenbearbeitung auf dem Zielsystem vor Weitergabe prüfen. deb-Paketierung und automatische Updates werden nicht angeboten.
 
+#### Im Benutzerverzeichnis ohne Versionsnummer installieren
+
+Nach Release-Build und AppImage-Paketierung im Projektverzeichnis die App nach `~/.local/bin/MyPdf` kopieren. Eine laufende MyPdf-App vorher beenden. Administratorrechte sind nicht erforderlich; Ausführungsrechte werden mitgesetzt. Den Quelldateinamen an die tatsächlich erzeugte Version und Architektur anpassen.
+
+```bash
+install -Dm755 dist/MyPdf-0.1.0-x86_64.AppImage "$HOME/.local/bin/MyPdf"
+"$HOME/.local/bin/MyPdf"
+```
+
+Ein AppImage läuft auch ohne Dateiendung. Ist `~/.local/bin` in `PATH` enthalten, lässt sich `MyPdf` aus jedem Verzeichnis starten. Andernfalls Folgendes ausführen und die `export`-Zeile für eine dauerhafte Einstellung in die Startdatei der Shell aufnehmen, etwa `~/.bashrc` für Bash:
+
+```bash
+export PATH="$HOME/.local/bin:$PATH"
+MyPdf
+```
+
+Zum Aktualisieren die App beenden und das neue AppImage mit demselben Installationsbefehl kopieren. Ohne FUSE `APPIMAGE_EXTRACT_AND_RUN=1 "$HOME/.local/bin/MyPdf"` verwenden.
+
 ### Windows: installierte Laufzeit
 
 Unter Windows installiert `cmake --install` die App ohne DLLs. Auf dem Zielrechner MSYS2 UCRT64 und die oben genannten Pakete installieren und die App aus UCRT64 starten. Portable Windows-Pakete und Installationsprogramme werden noch nicht angeboten.
