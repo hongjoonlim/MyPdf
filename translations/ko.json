@@ -168,6 +168,26 @@
     "Form values updated. Save to keep your changes.": "양식 값을 수정했습니다. 변경 내용을 보관하려면 저장하세요.",
     "Licenses…": "라이선스…",
     "Fill Form": "양식 작성",
-    "Click a form field to edit it. Tab: next field. Esc: cancel the current edit.": "양식 필드를 클릭해 작성하세요. Tab: 다음 필드. Esc: 현재 입력 취소."
+    "Click a form field to edit it. Tab: next field. Esc: cancel the current edit.": "양식 필드를 클릭해 작성하세요. Tab: 다음 필드. Esc: 현재 입력 취소.",
+    "Save Optimized Copy…": "최적화된 사본 저장…",
+    "Choose a different filename for the optimized copy.": "최적화된 사본은 다른 파일 이름으로 저장하세요.",
+    "Unable to verify the optimized PDF.": "최적화된 PDF를 검증할 수 없습니다.",
+    "Optimized copy saved: %1 → %2 (%3% smaller).": "최적화된 사본 저장: %1 → %2 (%3% 감소).",
+    "Invalid compression settings.": "압축 설정이 올바르지 않습니다.",
+    "Unable to read PDF image data.": "PDF 이미지 데이터를 읽을 수 없습니다.",
+    "PDF image compression exceeded its processing limits.": "PDF 이미지 압축의 처리 용량 또는 시간 제한을 초과했습니다.",
+    "Unable to compress PDF images.": "PDF 이미지를 압축할 수 없습니다.",
+    "PDF Compression": "PDF 압축",
+    "High quality": "품질 우선",
+    "Balanced": "균형",
+    "Small file": "용량 우선",
+    "Lossless": "무손실",
+    "Custom": "사용자 지정",
+    "Keep original resolution": "원본 해상도 유지",
+    "Compression preset": "압축 방식",
+    "JPEG quality (1–100)": "JPEG 품질 (1–100)",
+    "Maximum image edge (pixels)": "이미지의 긴 변 최대 길이 (픽셀)",
+    "No further reduction with these settings. A copy was saved without increasing its size.": "현재 설정으로는 더 줄일 수 없습니다. 용량을 늘리지 않고 사본을 저장했습니다.",
+    "Lossy compression reduces image detail. Text stays searchable and form fields stay editable. Some image formats are preserved. Save a copy and check it before sharing.": "손실 압축은 이미지의 세부 묘사를 줄입니다. 텍스트 검색과 양식 입력을 유지하며 일부 이미지 형식은 그대로 보존합니다. 사본을 저장한 뒤 공유 전에 확인하세요."
   }
 }

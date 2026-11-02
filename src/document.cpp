@@ -355,6 +355,53 @@ void Document::save(const QString &destination) {
     signatureBefore_.clear();
 }
 
+PdfOptimizationResult Document::saveOptimizedCopy(const QString &destination, const PdfCompressionOptions &options) const {
+    if (!isOpen()) fail(I18n::text("Open a PDF first."));
+    validateDestination(destination);
+    const QFileInfo target(destination), sourceFile(path_);
+    if (!path_.isEmpty() && (target.absoluteFilePath()==sourceFile.absoluteFilePath() ||
+        (!target.canonicalFilePath().isEmpty() && target.canonicalFilePath()==sourceFile.canonicalFilePath())))
+        fail(I18n::text("Choose a different filename for the optimized copy."));
+    if (options.jpegQuality<1 || options.jpegQuality>100 || options.maxImageDimension<0 || options.maxImageDimension>10000)
+        fail(I18n::text("Invalid compression settings."));
+    const QString source=withEditState(), optimized=next();
+    QString candidate=source; int changed=0;
+    Document compressed;
+    if (options.lossy) {
+        const QString base=compressed.compressImages(base_,options,changed);
+        auto objects=objects_;
+        for (auto &object:objects) if (!object.image.isNull() && options.maxImageDimension>0 &&
+            qMax(object.image.width(),object.image.height())>options.maxImageDimension) {
+            object.image=object.image.scaled(options.maxImageDimension,options.maxImageDimension,Qt::KeepAspectRatio,Qt::SmoothTransformation);
+            ++changed;
+        }
+        // Rebuild both the displayed PDF and its editable base; do not embed the full-size original again.
+        if (changed>0) {
+            compressed.adopt(base); compressed.base_=base;
+            compressed.commitObjects(base,objects);
+            candidate=compressed.withEditState();
+        }
+    }
+    const QStringList flags{"--compress-streams=y","--decode-level=generalized","--recompress-flate",
+         "--compression-level=9","--object-streams=generate","--remove-unreferenced-resources=no"};
+    auto compress=[this,&flags](const QString &input,const QString &output) {
+        QStringList args{input}; args<<flags<<output; run(args);
+    };
+    compress(candidate,optimized);
+    QString result=optimized;
+    if (changed>0) {
+        const QString lossless=next(); compress(source,lossless);
+        if (QFileInfo(lossless).size()<=QFileInfo(optimized).size()) { result=lossless; changed=0; }
+    }
+    auto verified=load(result);
+    if (verified->numPages()!=count()) fail(I18n::text("Unable to verify the optimized PDF."));
+    const qint64 before=QFileInfo(source).size(), after=QFileInfo(result).size();
+    if (before<=0 || after<=0) fail(I18n::text("Unable to verify the optimized PDF."));
+    const bool smaller=after<before;
+    atomicCopy(smaller?result:source,destination);
+    return {before,smaller?after:before,smaller?changed:0};
+}
+
 void Document::validateDestination(const QString &destination) const {
     if (!protectedWordSources_.isEmpty()) {
         if (!destination.endsWith(".pdf",Qt::CaseInsensitive)) fail(I18n::text("Choose a filename ending in .pdf."));

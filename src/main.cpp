@@ -33,6 +33,8 @@
 #include <QInputDialog>
 #include <QStatusBar>
 #include <QFileInfo>
+#include <QDir>
+#include <QLocale>
 #include <QCloseEvent>
 #include <QVBoxLayout>
 #include <QDialogButtonBox>
@@ -479,6 +481,7 @@ public:
         auto *open = action(file,text("Open…"),QKeySequence::Open,Icons::Symbol::Open,[this] { openDialog(); },false);
         saveDocument_ = action(file,text("Save"),QKeySequence::Save,Icons::Symbol::Save,[this] { save(false); });
         saveAsDocument_ = action(file,text("Save As…"),QKeySequence::SaveAs,Icons::Symbol::SaveAs,[this] { save(true); });
+        action(file,text("Save Optimized Copy…"),{},Icons::Symbol::SaveAs,[this] { saveOptimizedCopy(); })->setObjectName("saveOptimizedCopyAction");
         file->addSeparator();
         closeDocument_=action(file,text("Close Document"),QKeySequence::Close,Icons::Symbol::Close,[this] {
             if (canClose()) { doc_.close(); refresh(); }
@@ -839,6 +842,46 @@ private:
         if (as || path.isEmpty()) path = saveDialog(text("Save PDF"),path.isEmpty()?doc_.suggestedPath():path);
         if (path.isEmpty()) return false;
         doc_.save(path); updateSignatureAction(); title(); setStatus("Saved: %1",{path}); return true;
+    }
+    void saveOptimizedCopy() {
+        formEditor_->commit();
+        QString original=doc_.path().isEmpty()?doc_.suggestedPath():doc_.path();
+        if (original.isEmpty()) original="document.pdf";
+        const QFileInfo file(original);
+        const QString initial=file.dir().filePath(file.completeBaseName()+"-optimized.pdf");
+        QDialog settings(this); settings.setObjectName("compressionSettings"); settings.setWindowTitle(text("PDF Compression"));
+        auto *layout=new QVBoxLayout(&settings); auto *form=new QFormLayout;
+        auto *profile=new QComboBox; profile->setObjectName("compressionProfile");
+        profile->addItems({text("High quality"),text("Balanced"),text("Small file"),text("Lossless"),text("Custom")});
+        auto *quality=new QSpinBox; quality->setObjectName("compressionQuality"); quality->setRange(1,100); quality->setValue(65);
+        auto *dimension=new QSpinBox; dimension->setObjectName("compressionDimension"); dimension->setRange(0,10000); dimension->setSingleStep(100); dimension->setSpecialValueText(text("Keep original resolution")); dimension->setValue(2000);
+        form->addRow(text("Compression preset"),profile); form->addRow(text("JPEG quality (1–100)"),quality); form->addRow(text("Maximum image edge (pixels)"),dimension); layout->addLayout(form);
+        auto *notice=new QLabel(text("Lossy compression reduces image detail. Text stays searchable and form fields stay editable. Some image formats are preserved. Save a copy and check it before sharing."));
+        notice->setWordWrap(true); notice->setMaximumWidth(520); layout->addWidget(notice);
+        connect(profile,&QComboBox::currentIndexChanged,&settings,[=](int index) {
+            quality->setEnabled(index!=3); dimension->setEnabled(index!=3);
+            const QSignalBlocker a(quality),b(dimension);
+            if (index==0) { quality->setValue(85); dimension->setValue(3000); }
+            if (index==1) { quality->setValue(65); dimension->setValue(2000); }
+            if (index==2) { quality->setValue(45); dimension->setValue(1400); }
+        });
+        auto custom=[profile] { const QSignalBlocker block(profile); profile->setCurrentIndex(4); };
+        connect(quality,&QSpinBox::valueChanged,&settings,custom); connect(dimension,&QSpinBox::valueChanged,&settings,custom);
+        profile->setCurrentIndex(1);
+        auto *buttons=new QDialogButtonBox(QDialogButtonBox::Ok|QDialogButtonBox::Cancel); layout->addWidget(buttons);
+        connect(buttons,&QDialogButtonBox::accepted,&settings,&QDialog::accept); connect(buttons,&QDialogButtonBox::rejected,&settings,&QDialog::reject);
+        if (settings.exec()!=QDialog::Accepted) return;
+        const PdfCompressionOptions options{profile->currentIndex()!=3,quality->value(),dimension->value()};
+        const QString path=saveDialog(text("Save Optimized Copy…"),initial);
+        if (path.isEmpty()) return;
+        const auto result=doc_.saveOptimizedCopy(path,options);
+        if (result.optimizedBytes<result.originalBytes) {
+            const QLocale locale;
+            const double percent=100.*(result.originalBytes-result.optimizedBytes)/result.originalBytes;
+            setStatus("Optimized copy saved: %1 → %2 (%3% smaller).",
+                {locale.formattedDataSize(result.originalBytes),locale.formattedDataSize(result.optimizedBytes),locale.toString(percent,'f',1)});
+        } else setStatus("No further reduction with these settings. A copy was saved without increasing its size.");
+        title();
     }
     bool canClose() {
         try { formEditor_->commit(); } catch (const std::exception &e) {

@@ -40,6 +40,16 @@ struct PdfFormValue {
     bool checked=false;
     QList<int> selected;
 };
+struct PdfCompressionOptions {
+    bool lossy=false;
+    int jpegQuality=65;
+    int maxImageDimension=2000;
+};
+struct PdfOptimizationResult {
+    qint64 originalBytes=0;
+    qint64 optimizedBytes=0;
+    int imagesChanged=0;
+};
 class Document {
 public:
     Document();
@@ -74,6 +84,7 @@ public:
     void cancelSignature();
     void extract(const QList<int> &pages, const QString &destination) const;
     void save(const QString &destination);
+    PdfOptimizationResult saveOptimizedCopy(const QString &destination, const PdfCompressionOptions &options={}) const;
     bool dirty() const { return dirty_; }
     QString path() const { return path_; }
     QString suggestedPath() const { return suggestedPath_; }
@@ -97,6 +108,7 @@ private:
     PageObject makeText(int page, const QString &text, const QFont &font, const QColor &color, const QPointF &position, double width=0) const;
     void restoreObjects();
     QString withEditState() const;
+    QString compressImages(const QString &source, const PdfCompressionOptions &options, int &changed) const;
     void run(const QStringList &args) const;
     void check(int page) const;
     void validateDestination(const QString &destination) const;

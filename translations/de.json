@@ -168,6 +168,26 @@
     "Form values updated. Save to keep your changes.": "Formularwerte aktualisiert. Speichern Sie Ihre Änderungen.",
     "Licenses…": "Lizenzen…",
     "Fill Form": "Formular ausfüllen",
-    "Click a form field to edit it. Tab: next field. Esc: cancel the current edit.": "Klicken Sie zum Bearbeiten auf ein Formularfeld. Tab: nächstes Feld. Esc: aktuelle Eingabe verwerfen."
+    "Click a form field to edit it. Tab: next field. Esc: cancel the current edit.": "Klicken Sie zum Bearbeiten auf ein Formularfeld. Tab: nächstes Feld. Esc: aktuelle Eingabe verwerfen.",
+    "Save Optimized Copy…": "Optimierte Kopie speichern…",
+    "Choose a different filename for the optimized copy.": "Wählen Sie einen anderen Dateinamen für die optimierte Kopie.",
+    "Unable to verify the optimized PDF.": "Die optimierte PDF konnte nicht überprüft werden.",
+    "Optimized copy saved: %1 → %2 (%3% smaller).": "Optimierte Kopie gespeichert: %1 → %2 (%3% kleiner).",
+    "Invalid compression settings.": "Ungültige Komprimierungseinstellungen.",
+    "Unable to read PDF image data.": "PDF-Bilddaten konnten nicht gelesen werden.",
+    "PDF image compression exceeded its processing limits.": "Die PDF-Bildkomprimierung hat ihre Größen- oder Zeitgrenze überschritten.",
+    "Unable to compress PDF images.": "PDF-Bilder konnten nicht komprimiert werden.",
+    "PDF Compression": "PDF-Komprimierung",
+    "High quality": "Hohe Qualität",
+    "Balanced": "Ausgewogen",
+    "Small file": "Kleine Datei",
+    "Lossless": "Verlustfrei",
+    "Custom": "Benutzerdefiniert",
+    "Keep original resolution": "Originalauflösung beibehalten",
+    "Compression preset": "Komprimierungsvorgabe",
+    "JPEG quality (1–100)": "JPEG-Qualität (1–100)",
+    "Maximum image edge (pixels)": "Maximale Bildkante (Pixel)",
+    "No further reduction with these settings. A copy was saved without increasing its size.": "Mit diesen Einstellungen keine weitere Verkleinerung. Eine Kopie wurde ohne Größenvergrößerung gespeichert.",
+    "Lossy compression reduces image detail. Text stays searchable and form fields stay editable. Some image formats are preserved. Save a copy and check it before sharing.": "Verlustbehaftete Komprimierung reduziert Bilddetails. Text bleibt durchsuchbar und Formularfelder bleiben bearbeitbar. Manche Bildformate bleiben unverändert. Speichern und prüfen Sie eine Kopie vor der Weitergabe."
   }
 }

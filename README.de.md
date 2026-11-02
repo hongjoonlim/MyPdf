@@ -7,6 +7,7 @@ Ein C++17-/Qt-6-PDF-Editor für Ubuntu, Windows und macOS. PDFs lesen, Seiten or
 ## Funktionen
 
 - PDFs öffnen, schließen, speichern und unter anderem Namen speichern.
+- PDF-Größe durch verlustfreie oder einstellbare verlustbehaftete Bildkomprimierung reduzieren; Text, Formulare und Bearbeitungsdaten behalten.
 - Bestehende AcroForm-Kontrollkästchen, Optionsfelder, Textfelder und Auswahllisten ausfüllen, speichern und erneut bearbeiten.
 - Seiten verschieben, ausgewählte Seiten als PDF extrahieren und leere Seiten, PDFs oder DOCX einfügen.
 - Text hinzufügen, Unterschriften zeichnen oder als Bild importieren.
@@ -22,7 +23,7 @@ Ein C++17-/Qt-6-PDF-Editor für Ubuntu, Windows und macOS. PDFs lesen, Seiten or
 | --- | --- |
 | Build-Werkzeuge | C++17-Compiler, CMake ab 3.22, Make oder Ninja, Bash |
 | Bibliotheken | Qt Widgets ab 6.4, Poppler **mit Qt-6-Anbindung**, zlib |
-| Laufzeitwerkzeug | qpdf für Seitenbearbeitung und Text-/Unterschrift-Komposition |
+| Laufzeitwerkzeug | qpdf 11+ für Seitenbearbeitung und Text-/Unterschrift-Komposition |
 | Sprachressourcen | Qt-Übersetzungspaket für Standarddialoge |
 | Linux-Paketierung | Python 3, binutils; Internet für den ersten Werkzeug-Download |
 | macOS-Paketierung | Python 3, Xcode Command Line Tools, macdeployqt aus der verknüpften Qt-Installation |
@@ -169,20 +170,20 @@ sudo apt install python3 binutils
 ./scripts/package-linux.sh
 ```
 
-Ergebnis: `dist/MyPdf-0.3.0-x86_64.AppImage`, `.sha256` und `.build.json`. Version und Architektur richten sich nach dem Build. Qt, Poppler, qpdf, C++-Laufzeit und erforderliche Plugins werden integriert; Empfänger müssen diese Pakete nicht separat installieren. [linuxdeploy](https://github.com/linuxdeploy/linuxdeploy), sein Qt-Plugin und die AppImage-Laufzeit werden beim ersten Aufruf aus offiziellen GitHub-Releases heruntergeladen und anhand veröffentlichter SHA-256-Werte geprüft. Die Werkzeuge werden unter `build/appimage-tools` zwischengespeichert und danach ohne erneuten Download verwendet. Die erste Paketierung benötigt Internetzugang.
+Ergebnis: `dist/MyPdf-0.4.0-x86_64.AppImage`, `.sha256` und `.build.json`. Version und Architektur richten sich nach dem Build. Qt, Poppler, qpdf, C++-Laufzeit und erforderliche Plugins werden integriert; Empfänger müssen diese Pakete nicht separat installieren. [linuxdeploy](https://github.com/linuxdeploy/linuxdeploy), sein Qt-Plugin und die AppImage-Laufzeit werden beim ersten Aufruf aus offiziellen GitHub-Releases heruntergeladen und anhand veröffentlichter SHA-256-Werte geprüft. Die Werkzeuge werden unter `build/appimage-tools` zwischengespeichert und danach ohne erneuten Download verwendet. Die erste Paketierung benötigt Internetzugang.
 
 Die **einzelne AppImage-Datei** weitergeben. Mit `.sha256` lässt sich die Integrität prüfen; `.build.json` dokumentiert Build-Umgebung, Systembibliotheken und Werkzeugversionen. Empfänger führen im Download-Verzeichnis aus:
 
 ```bash
-sha256sum -c MyPdf-0.3.0-x86_64.AppImage.sha256
-chmod +x MyPdf-0.3.0-x86_64.AppImage
-./MyPdf-0.3.0-x86_64.AppImage
+sha256sum -c MyPdf-0.4.0-x86_64.AppImage.sha256
+chmod +x MyPdf-0.4.0-x86_64.AppImage
+./MyPdf-0.4.0-x86_64.AppImage
 ```
 
 Die Prüfsummenprüfung nur ausführen, wenn auch `.sha256` mitgeliefert wurde. Ohne FUSE ist ein Start durch temporäres Entpacken ohne Installation möglich:
 
 ```bash
-APPIMAGE_EXTRACT_AND_RUN=1 ./MyPdf-0.3.0-x86_64.AppImage
+APPIMAGE_EXTRACT_AND_RUN=1 ./MyPdf-0.4.0-x86_64.AppImage
 ```
 
 Das AppImage kann in einem beliebigen Ordner liegen. Zum Aktualisieren die App beenden und durch die neue Version ersetzen. Vorhandene Pakete werden nicht überschrieben; bei Bedarf einen neuen Ausgabepfad wählen:
@@ -198,7 +199,7 @@ Native `x86_64` und `aarch64` werden unterstützt; lokal wurde bisher x86_64 gep
 Nach Release-Build und AppImage-Paketierung im Projektverzeichnis die App nach `~/.local/bin/MyPdf` kopieren. Eine laufende MyPdf-App vorher beenden. Administratorrechte sind nicht erforderlich; Ausführungsrechte werden mitgesetzt. Den Quelldateinamen an die tatsächlich erzeugte Version und Architektur anpassen.
 
 ```bash
-install -Dm755 dist/MyPdf-0.3.0-x86_64.AppImage "$HOME/.local/bin/MyPdf"
+install -Dm755 dist/MyPdf-0.4.0-x86_64.AppImage "$HOME/.local/bin/MyPdf"
 "$HOME/.local/bin/MyPdf"
 ```
 
@@ -221,6 +222,7 @@ Die oberen Schaltflächen für Unterschrift, Markieren, Seiten und Anpassung öf
 
 | Aufgabe | Bedienung |
 | --- | --- |
+| PDF-Größe reduzieren | Datei → Optimierte Kopie speichern… → Vorgabe oder JPEG-Qualität/Bildkante wählen → separate PDF speichern. Standard ist Ausgewogen. Die Statusleiste zeigt Größen und Reduktion; der Speicherpfad des offenen Dokuments bleibt bestehen. |
 | PDF-Formulare ausfüllen | Im Auswahlmodus direkt in die Felder auf der Seite klicken. Kontrollkästchen/Optionsfelder per Klick wählen, Text und Auswahllisten direkt bearbeiten. Tab wechselt das Feld, Enter bestätigt einzeiligen Text, Ctrl+Enter mehrzeiligen Text und Esc verwirft die aktuelle unbestätigte Eingabe. Datei → Speichern übernimmt auch die fokussierte Eingabe. Bearbeiten → Formular ausfüllen fokussiert das erste bearbeitbare Feld. |
 | Öffnen und speichern | File → Open / Save / Save As. DOCX wird als PDF importiert; beim ersten Speichern den PDF-Zielpfad wählen. |
 | Text/Unterschriften hinzufügen | Text / Sign in der Werkzeugleiste wählen und auf der Seite platzieren. |
@@ -230,6 +232,12 @@ Die oberen Schaltflächen für Unterschrift, Markieren, Seiten und Anpassung öf
 | Sprache/Design | In Settings ändern. Die Menünamen hier entsprechen der englischen Oberfläche. |
 
 Hinzugefügte Texte, Unterschriften und Markierungen bleiben nach Speichern und erneutem Öffnen in MyPdf bearbeitbar und werden in anderen PDF-Betrachtern angezeigt. Bereits in bestehende PDFs eingebettete Texte/Unterschriften sind nicht einzeln bearbeitbar.
+
+Vorgaben: **Hohe Qualität** nutzt JPEG 85 / maximale Bildkante 3000 px, **Ausgewogen** 65 / 2000 px und **Kleine Datei** 45 / 1400 px. Benutzerdefiniert sind Qualität 1–100 und Kanten bis 10000 px möglich; 0 behält die Originalauflösung. **Verlustfrei** komprimiert nur PDF-Strukturen und Streams.
+
+Verlustbehaftet werden bestehende JPEGs und unterstützte 8-Bit-RGB-/Graustufenbilder einschließlich kompatibler ICC-Farbräume neu komprimiert. Kleine Bilder, CMYK-/indizierte/monochrome Bilder, eigene Decode-Arrays und Bilder mit Masken/Transparenz bleiben unverändert. Seiten werden nicht gerastert: Text bleibt durchsuchbar, Formulare bleiben interaktiv. Auch die bearbeitbare MyPdf-Basis wird komprimiert, sodass erneutes Öffnen/Bearbeiten nicht die großen Originalbilder wiederherstellt. Große eingefügte Unterschriftsbilder können unter Erhaltung der Transparenz verkleinert werden. Anhänge und Bearbeitungsdaten bleiben erhalten.
+
+Verlustbehaftete Komprimierung reduziert Details. Prüfen Sie die Kopie, besonders Scans und kleine Schrift in Bildern. PDFs ohne Bilder oder bereits kleine Dateien schrumpfen eventuell kaum. Das kleinste Ergebnis aus verlustbehafteter, verlustfreier und normaler Speicherung wird verwendet. Vergleichsbasis ist das aktuelle Dokument inklusive Änderungen/Bearbeitungsdaten; das Original bleibt unverändert. Kein neues externes Werkzeug ist nötig; verwendet werden qpdf 11+ und die vorhandene Qt-JPEG-Unterstützung.
 
 AcroForm-Werte bleiben in der gespeicherten PDF interaktiv, auch mit hinzugefügtem Text und Unterschriften. Schreibgeschützte Felder sind deaktiviert. Nur bestehende Felder: Feldanlage, XFA, JavaScript-Prüfungen/Berechnungen/Aktionen und Zertifikatssignaturen werden nicht unterstützt. Die Textdarstellung hängt von verfügbaren PDF-Schriften ab.
 
